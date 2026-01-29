@@ -1,24 +1,20 @@
 
-import React, { useState } from 'react';
-import { AppData, FitCheckScore, Domain, View, FitLevel } from '../types';
-import { Card, Button, AIButton, Badge, Tabs } from '../components/Shared';
-import { runFitCheckAnalysis } from '../services/geminiService';
+import React, { useState, useMemo } from 'react';
+import { AppData, FitCheckScore, Domain, View } from '../types';
+import { Card, Button, AIButton, Badge, Tabs, Modal } from '../components/Shared';
+import { runFitCheckInterpretation } from '../services/geminiService';
 import { 
-  ChevronDown, 
-  ChevronUp, 
+  ChevronRight, 
+  ChevronLeft,
   Target, 
   Users, 
   Settings, 
   Database, 
-  Activity, 
-  Share2, 
-  Award, 
   Zap, 
-  ArrowRight, 
   CheckCircle2,
   AlertCircle,
   BarChart2,
-  X,
+  Sparkles,
   Info
 } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
@@ -29,324 +25,278 @@ interface Props {
   onNavigate: (view: View) => void;
 }
 
-interface SelectedItem {
-    type: 'goal' | 'kpi' | 'inrichting' | 'action';
-    data: any;
+interface Question {
+  id: string;
+  domain: string;
+  question: string;
+  hint: string;
 }
 
-const FitCheck: React.FC<Props> = ({ data, onUpdate, onNavigate }) => {
-  const [analyzing, setAnalyzing] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState('Strategiekaart');
-  const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+const QUESTIONS: Question[] = [
+  // STRUCTURE (10)
+  { id: 's1', domain: 'Structuur', question: 'Zijn rollen en verantwoordelijkheden voor iedereen glashelder?', hint: 'Geen overlap of "grijze gebieden" in wie wat doet.' },
+  { id: 's2', domain: 'Structuur', question: 'Ondersteunt de huidige hiërarchie snelle besluitvorming?', hint: 'Weinig bureaucratische lagen.' },
+  { id: 's3', domain: 'Structuur', question: 'Is de overlegstructuur efficiënt en doelgericht?', hint: 'Meetings hebben agenda\'s en actiehouders.' },
+  { id: 's4', domain: 'Structuur', question: 'Worden projecten organisatiebreed goed gecoördineerd?', hint: 'Geen eilandjes-cultuur bij executie.' },
+  { id: 's5', domain: 'Structuur', question: 'Is de span-of-control van leidinggevenden hanteerbaar?', hint: 'Managers hebben tijd voor coaching.' },
+  { id: 's6', domain: 'Structuur', question: 'Kan de structuur makkelijk opschalen bij groei?', hint: 'Flexibiliteit in de inrichting.' },
+  { id: 's7', domain: 'Structuur', question: 'Is de governance (toezicht/sturing) adequaat ingericht?', hint: 'Duidelijk mandaat bij het MT.' },
+  { id: 's8', domain: 'Structuur', question: 'Werken afdelingen naadloos samen aan gedeelde doelen?', hint: 'Horizontale synergie.' },
+  { id: 's9', domain: 'Structuur', question: 'Zijn secundaire processen goed belegd?', hint: 'HR, Finance en IT ondersteunen de kern.' },
+  { id: 's10', domain: 'Structuur', question: 'Is er een duidelijke rapportagelijn naar de strategie?', hint: 'Voortgang is inzichtelijk voor de top.' },
 
-  const handleAnalysis = async () => {
+  // RESOURCES (10)
+  { id: 'r1', domain: 'Middelen', question: 'Is er voldoende budget om de strategische doelen te halen?', hint: 'Financiële armslag is aanwezig.' },
+  { id: 'r2', domain: 'Middelen', question: 'Zijn de IT-systemen modern en ondersteunend?', hint: 'Geen legacy-software die vertraagt.' },
+  { id: 'r3', domain: 'Middelen', question: 'Is data-beveiliging en privacy op orde?', hint: 'Voldoet aan wet- en regelgeving.' },
+  { id: 'r4', domain: 'Middelen', question: 'Hebben medewerkers toegang tot de juiste tools?', hint: 'Hardware en software zijn up-to-date.' },
+  { id: 'r5', domain: 'Middelen', question: 'Is er een innovatiebudget voor experimenten?', hint: 'Ruimte voor R&D.' },
+  { id: 'r6', domain: 'Middelen', question: 'Worden middelen efficiënt ingezet (weinig verspilling)?', hint: 'Kostenbewustzijn in de operatie.' },
+  { id: 'r7', domain: 'Middelen', question: 'Is de fysieke werkomgeving inspirerend en functioneel?', hint: 'Kantoor of remote-setup is optimaal.' },
+  { id: 'r8', domain: 'Middelen', question: 'Zijn kritieke leveranciers betrouwbaar?', hint: 'Continuïteit is gewaarborgd.' },
+  { id: 'r9', domain: 'Middelen', question: 'Is er voldoende kennis over nieuwe technologie (zoals AI)?', hint: 'Technologische awareness.' },
+  { id: 'r10', domain: 'Middelen', question: 'Is de liquiditeitspositie gezond voor investeringen?', hint: 'Cashflow is op orde.' },
+
+  // CULTURE (10)
+  { id: 'c1', domain: 'Cultuur', question: 'Geloof de organisatie in de opgestelde missie?', hint: 'De "Why" wordt doorleefd.' },
+  { id: 'c2', domain: 'Cultuur', question: 'Is er een veilige cultuur om fouten te maken?', hint: 'Psychologische veiligheid.' },
+  { id: 'c3', domain: 'Cultuur', question: 'Wordt initiatief nemen aangemoedigd?', hint: 'Ondernemerschap op de werkvloer.' },
+  { id: 'c4', domain: 'Cultuur', question: 'Is de communicatie intern open en eerlijk?', hint: 'Geen politieke spelletjes.' },
+  { id: 'c5', domain: 'Cultuur', question: 'Is er een sterke focus op klantwaarde?', hint: 'Iedereen weet voor wie ze het doen.' },
+  { id: 'c6', domain: 'Cultuur', question: 'Worden prestaties gevierd en erkend?', hint: 'Waardering voor resultaat.' },
+  { id: 'c7', domain: 'Cultuur', question: 'Is er een gezonde balans tussen werk en privé?', hint: 'Duurzame inzetbaarheid.' },
+  { id: 'c8', domain: 'Cultuur', question: 'Is de organisatie wendbaar (Agile mindset)?', hint: 'Snel kunnen aanpassen aan de markt.' },
+  { id: 'c9', domain: 'Cultuur', question: 'Is er sprake van een inclusieve omgeving?', hint: 'Diversiteit in denken en doen.' },
+  { id: 'c10', domain: 'Cultuur', question: 'Dragen kernwaarden bij aan de strategie?', hint: 'Cultuur werkt niet tegen de koers.' },
+
+  // PEOPLE (10)
+  { id: 'p1', domain: 'Mensen', question: 'Hebben we de juiste skills in huis voor de toekomst?', hint: 'Competentie-analyse.' },
+  { id: 'p2', domain: 'Mensen', question: 'Is er een duidelijk plan voor talentontwikkeling?', hint: 'Groeipad voor medewerkers.' },
+  { id: 'p3', domain: 'Mensen', question: 'Is de werkdruk op een gezond niveau?', hint: 'Voorkomen van burn-outs.' },
+  { id: 'p4', domain: 'Mensen', question: 'Is de medewerker-betrokkenheid (eNPS) hoog?', hint: 'Mensen zijn trots op hun werk.' },
+  { id: 'p5', domain: 'Mensen', question: 'Is het verloop binnen de organisatie laag?', hint: 'Behoud van talent.' },
+  { id: 'p6', domain: 'Mensen', question: 'Is leiderschap inspirerend en coachend?', hint: 'Managers zijn dienende leiders.' },
+  { id: 'p7', domain: 'Mensen', question: 'Is recruitment succesvol in het vinden van talent?', hint: 'Aantrekkingskracht op de markt.' },
+  { id: 'p8', domain: 'Mensen', question: 'Worden kennis en best-practices gedeeld?', hint: 'Lerende organisatie.' },
+  { id: 'p9', domain: 'Mensen', question: 'Is er een goede mix van ervaring en nieuw talent?', hint: 'Generatiemanagement.' },
+  { id: 'p10', domain: 'Mensen', question: 'Zijn medewerkers gemotiveerd om de doelen te halen?', hint: 'Intrinsieke motivatie.' },
+];
+
+const FitCheck: React.FC<Props> = ({ data, onUpdate, onNavigate }) => {
+  const [activeSubTab, setActiveSubTab] = useState('Assessment');
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [analyzing, setAnalyzing] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+
+  const currentQuestion = QUESTIONS[step];
+  const progress = Math.round(((step + 1) / QUESTIONS.length) * 100);
+
+  const handleAnswer = (val: number) => {
+    setAnswers(prev => ({ ...prev, [currentQuestion.id]: val }));
+    if (step < QUESTIONS.length - 1) {
+      setStep(step + 1);
+    } else {
+      setShowSummary(true);
+    }
+  };
+
+  const calculateDomainScores = () => {
+    const domains = ['Structuur', 'Middelen', 'Cultuur', 'Mensen'];
+    return domains.map(dom => {
+      const domQuestions = QUESTIONS.filter(q => q.domain === dom);
+      const sum = domQuestions.reduce((acc, q) => acc + (answers[q.id] || 0), 0);
+      return { domain: dom, score: Math.round(sum / domQuestions.length) };
+    });
+  };
+
+  const handleAIAnalysis = async () => {
       setAnalyzing(true);
-      const scores = await runFitCheckAnalysis(data);
-      if (scores.length > 0) {
+      const domainResults = calculateDomainScores();
+      const interpretation = await runFitCheckInterpretation(data, answers);
+      
+      if (interpretation.length > 0) {
           onUpdate({ 
-              fitCheckScores: scores,
+              fitCheckScores: interpretation as FitCheckScore[],
               history: [...data.history, { 
                   date: new Date().toISOString().split('T')[0], 
-                  totalFitScore: scores.reduce((a,b) => a+b.score, 0) / scores.length,
-                  domainScores: scores.reduce((acc, curr) => ({...acc, [curr.domain]: curr.score}), {})
+                  totalFitScore: interpretation.reduce((a,b) => a+b.score, 0) / interpretation.length,
+                  domainScores: interpretation.reduce((acc, curr) => ({...acc, [curr.domain]: curr.score}), {})
               }]
           });
+          setActiveSubTab('Resultaten');
+          setShowSummary(false);
       }
       setAnalyzing(false);
   };
 
-  const getIcon = (domain: string) => {
-      switch(domain) {
-          case Domain.STRATEGY: return Target;
-          case Domain.STRUCTURE: return Settings;
-          case Domain.CULTURE: return Users;
-          case Domain.PEOPLE: return Award;
-          case Domain.RESOURCES: return Database;
-          case Domain.PROCESSES: return Activity;
-          case Domain.TECHNOLOGY: return Zap;
-          default: return Activity;
-      }
-  }
+  const getDomainIcon = (domain: string) => {
+      if (domain.includes('Structuur')) return Settings;
+      if (domain.includes('Middelen')) return Database;
+      if (domain.includes('Cultuur')) return Users;
+      return Zap;
+  };
 
-  const getStatusColor = (score: number) => {
-      if (score >= 4) return 'bg-green-500';
-      if (score >= 2.5) return 'bg-orange-500';
-      return 'bg-red-500';
-  }
-
-  const renderStrategyMap = () => (
-      <div className="space-y-10 reveal visible relative">
-          <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-2xl shadow-blue-500/5">
-              <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
-                  <div>
-                      <h3 className="text-3xl font-black text-blackDark flex items-center gap-3">
-                          <Share2 className="h-8 w-8 text-primary" /> Strategische Verbindingen
-                      </h3>
-                      <p className="text-grayDark mt-2 font-medium">Overzicht van de relaties tussen doelen, KPI's en inrichting.</p>
-                  </div>
-                  <div className="flex gap-6 bg-grayLight/30 p-4 rounded-2xl border border-gray-100">
-                      <div className="flex items-center gap-2 text-xs font-bold text-grayDark">
-                        <div className="h-3 w-3 rounded-full bg-green-500 shadow-md"></div> In FIT
-                      </div>
-                      <div className="flex items-center gap-2 text-xs font-bold text-grayDark">
-                        <div className="h-3 w-3 rounded-full bg-orange-500 shadow-md"></div> Risico
-                      </div>
-                      <div className="flex items-center gap-2 text-xs font-bold text-grayDark">
-                        <div className="h-3 w-3 rounded-full bg-red-500 shadow-md"></div> Mismatch
-                      </div>
-                  </div>
-              </div>
-
-              <div className="relative">
-                  <div className="grid grid-cols-4 gap-6 mb-10">
-                      <div className="text-[10px] font-black text-grayMedium uppercase tracking-[0.2em] text-center">1. Strategische Doelen</div>
-                      <div className="text-[10px] font-black text-grayMedium uppercase tracking-[0.2em] text-center">2. KPI Focus</div>
-                      <div className="text-[10px] font-black text-grayMedium uppercase tracking-[0.2em] text-center">3. Inrichting Fit</div>
-                      <div className="text-[10px] font-black text-grayMedium uppercase tracking-[0.2em] text-center">4. Executie Kracht</div>
-                  </div>
-
-                  <div className="space-y-8 mt-4">
-                      {data.strategicGoals.length > 0 ? data.strategicGoals.map(goal => {
-                          const kpi = data.performanceMetrics.find(k => k.id === goal.kpiId);
-                          const linkedActions = data.actions.filter(a => a.linkedId === goal.id);
-                          const fitScore = data.fitCheckScores.find(s => s.domain === Domain.STRATEGY)?.score || 3;
-                          
-                          return (
-                              <div key={goal.id} className="grid grid-cols-4 gap-6 items-stretch relative group">
-                                  <div className="absolute top-1/2 left-0 w-full h-1 bg-grayLight/30 -z-10 rounded-full group-hover:bg-primary/10 transition-colors"></div>
-
-                                  <div 
-                                    onClick={() => setSelectedItem({ type: 'goal', data: goal })}
-                                    className={`p-5 rounded-3xl border-2 bg-white shadow-sm transition-all hover:scale-105 cursor-pointer relative z-10 ${fitScore >= 4 ? 'border-green-100' : 'border-red-100'} ${selectedItem?.data?.id === goal.id ? 'ring-2 ring-primary border-primary' : ''}`}
-                                  >
-                                      <div className={`h-2 w-10 rounded-full mb-3 ${getStatusColor(fitScore)}`}></div>
-                                      <p className="text-[10px] font-black uppercase text-primary tracking-widest mb-2">{goal.wheel}</p>
-                                      <p className="text-sm font-bold leading-tight text-blackDark">{goal.description}</p>
-                                  </div>
-
-                                  <div 
-                                    onClick={() => kpi && setSelectedItem({ type: 'kpi', data: kpi })}
-                                    className={`p-5 rounded-3xl border border-gray-100 bg-white shadow-sm flex flex-col justify-center relative z-10 transition-transform hover:scale-105 cursor-pointer ${selectedItem?.data?.id === kpi?.id ? 'ring-2 ring-primary border-primary' : ''}`}
-                                  >
-                                      {kpi ? (
-                                          <>
-                                              <p className="text-[10px] font-black text-grayMedium uppercase mb-2">KPI Focus</p>
-                                              <p className="text-sm font-bold text-blackDark">{kpi.name}</p>
-                                              <Badge color="blue" className="mt-3 w-fit">{kpi.unit}</Badge>
-                                          </>
-                                      ) : (
-                                          <div className="flex flex-col items-center justify-center opacity-30 italic text-grayMedium">
-                                              <AlertCircle className="h-6 w-6 mb-2" />
-                                              <p className="text-[10px]">Geen KPI</p>
-                                          </div>
-                                      )}
-                                  </div>
-
-                                  <div className="flex flex-wrap gap-2 justify-center content-center relative z-10">
-                                      {['structure', 'resources', 'culture', 'people'].map((dom, idx) => {
-                                          const score = data.fitCheckScores.find(s => s.domain.toLowerCase().includes(dom.toLowerCase()))?.score || 3;
-                                          return (
-                                              <div 
-                                                key={idx} 
-                                                onClick={() => setSelectedItem({ type: 'inrichting', data: { domain: dom, score } })}
-                                                className={`h-12 w-12 rounded-2xl flex items-center justify-center text-xs font-black text-white shadow-xl transition-all hover:scale-125 hover:rotate-6 cursor-pointer ${getStatusColor(score)}`} 
-                                                title={`${dom}: ${score}/5`}
-                                              >
-                                                  {dom.charAt(0).toUpperCase()}
-                                              </div>
-                                          )
-                                      })}
-                                  </div>
-
-                                  <div className="flex flex-col justify-center gap-3 relative z-10">
-                                      {linkedActions.length > 0 ? linkedActions.map(a => (
-                                          <div 
-                                            key={a.id} 
-                                            onClick={(e) => { e.stopPropagation(); setSelectedItem({ type: 'action', data: a }); }}
-                                            className={`px-4 py-3 rounded-2xl bg-white border border-primary/20 text-[11px] font-bold text-primary shadow-sm flex items-center justify-between group/action hover:bg-primary hover:text-white transition-all cursor-pointer ${selectedItem?.data?.id === a.id ? 'ring-2 ring-primary bg-primary text-white' : ''}`}
-                                          >
-                                              <span className="truncate">{a.title}</span>
-                                              <ArrowRight className="h-3 w-3 opacity-0 group-hover/action:opacity-100 transition-opacity" />
-                                          </div>
-                                      )) : (
-                                          <button 
-                                            onClick={() => onNavigate(View.TRANSITIE)}
-                                            className="px-4 py-4 rounded-2xl bg-grayLight/20 border-2 border-dashed border-grayMedium/30 text-[10px] font-black text-grayMedium uppercase tracking-widest hover:border-primary hover:text-primary hover:bg-white transition-all"
-                                          >
-                                              + Koppel Actie
-                                          </button>
-                                      )}
-                                  </div>
-                              </div>
-                          )
-                      }) : (
-                        <div className="text-center py-20 bg-grayLight/10 rounded-[2rem] border-2 border-dashed border-gray-100">
-                           <Target className="h-16 w-16 text-grayLight mx-auto mb-6" />
-                           <p className="text-lg font-bold text-grayMedium">Begin met het definiëren van je doelen in de Focus tab.</p>
-                           <Button onClick={() => onNavigate(View.FOCUS)} className="mt-6 rounded-2xl px-8">Naar Focus Module</Button>
-                        </div>
-                      )}
-                  </div>
-              </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <Card title="Strategische Balans">
-                  <div className="space-y-6 pt-4">
-                     {[
-                        { label: 'Doel-Executie Fit', value: 85, color: 'bg-green-500' },
-                        { label: 'Inrichting Consistentie', value: 62, color: 'bg-orange-500' },
-                        { label: 'Validatie Score', value: 78, color: 'bg-primary' },
-                     ].map((item, i) => (
-                        <div key={i} className="space-y-2">
-                            <div className="flex justify-between text-xs font-black uppercase tracking-widest">
-                                <span>{item.label}</span>
-                                <span>{item.value}%</span>
-                            </div>
-                            <div className="h-3 bg-grayLight rounded-full overflow-hidden shadow-inner">
-                                <div className={`h-full ${item.color} rounded-full transition-all duration-1000 shadow-lg`} style={{ width: `${item.value}%` }}></div>
-                            </div>
-                        </div>
-                     ))}
-                  </div>
-              </Card>
-          </div>
-
-          {selectedItem && (
-              <div className="fixed top-24 right-8 w-80 bg-white shadow-2xl rounded-3xl border border-gray-100 z-50 p-6 animate-fade-in-up">
-                  <div className="flex justify-between items-center mb-6">
-                      <div className="flex items-center gap-2">
-                          <Info className="h-5 w-5 text-primary" />
-                          <h4 className="font-black text-sm uppercase tracking-widest">Element Detail</h4>
-                      </div>
-                      <button onClick={() => setSelectedItem(null)} className="text-grayMedium hover:text-blackDark">
-                          <X className="h-5 w-5" />
-                      </button>
-                  </div>
-                  
-                  <div className="space-y-6">
-                      <div>
-                          <p className="text-[10px] font-black text-grayMedium uppercase tracking-widest mb-1">Type</p>
-                          <Badge color="blue" className="uppercase">{selectedItem.type}</Badge>
-                      </div>
-
-                      <div>
-                          <p className="text-[10px] font-black text-grayMedium uppercase tracking-widest mb-1">Inhoud</p>
-                          <p className="text-sm font-bold text-blackDark leading-tight">
-                              {selectedItem.type === 'goal' && selectedItem.data.description}
-                              {selectedItem.type === 'kpi' && selectedItem.data.name}
-                              {selectedItem.type === 'action' && selectedItem.data.title}
-                              {selectedItem.type === 'inrichting' && `${selectedItem.data.domain} (Score: ${selectedItem.data.score}/5)`}
-                          </p>
-                      </div>
-
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full text-[10px] font-black"
-                        onClick={() => {
-                            if (selectedItem.type === 'goal') onNavigate(View.FOCUS);
-                            if (selectedItem.type === 'inrichting') onNavigate(View.INRICHTING);
-                            if (selectedItem.type === 'action') onNavigate(View.TRANSITIE);
-                            setSelectedItem(null);
-                        }}
-                      >
-                          BEWERK IN MODULE <ArrowRight className="h-3 w-3 ml-2" />
-                      </Button>
-                  </div>
-              </div>
-          )}
-      </div>
-  );
+  const radarData = useMemo(() => {
+    return data.fitCheckScores.map(s => ({
+      domain: s.domain,
+      score: s.score
+    }));
+  }, [data.fitCheckScores]);
 
   return (
-    <div className="space-y-10 reveal visible">
+    <div className="space-y-10 animate-fade-in-up">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <Badge color="purple" className="mb-4">RAPPORTAGE</Badge>
-            <h1 className="text-4xl md:text-5xl font-black text-blackDark tracking-tight">FITCheck & Kaart</h1>
-            <p className="text-grayDark mt-2 font-medium">Overzicht van de organisatie-fit en de voortgang van de strategische doelen.</p>
+            <Badge color="purple" className="mb-4">STRATEGISCHE AUDIT</Badge>
+            <h1 className="text-4xl md:text-5xl font-black text-blackDark tracking-tight">FITCheck Assessment.</h1>
+            <p className="text-grayDark mt-2 font-medium">Analyseer de vlijmscherpe verbinding tussen je ambities en je inrichting.</p>
           </div>
           <div className="flex gap-4">
-              <Button variant="outline" onClick={() => onNavigate(View.DASHBOARD)} className="rounded-2xl border-gray-200">Trends Dashboard</Button>
-              <AIButton onClick={handleAnalysis} loading={analyzing} label="Herbereken FIT" />
+              <Button variant="outline" onClick={() => setActiveSubTab('Assessment')} className="rounded-2xl border-gray-200">Start Nieuwe Check</Button>
           </div>
       </div>
 
-      <Tabs tabs={['Strategiekaart', 'Domein Scores', 'Historie']} activeTab={activeSubTab} onChange={setActiveSubTab} />
+      <Tabs tabs={['Assessment', 'Resultaten', 'Benchmark']} activeTab={activeSubTab} onChange={setActiveSubTab} />
 
-      {activeSubTab === 'Domein Scores' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-              <Card className="lg:col-span-1 h-[450px]" title="Radar Profiel">
-                 <div className="h-full w-full pb-8">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data.fitCheckScores}>
-                            <PolarGrid stroke="#E5E7EB" />
-                            <PolarAngleAxis dataKey="domain" tick={{ fill: '#4B5563', fontSize: 10, fontWeight: 'bold' }} />
-                            <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
-                            <Radar name="Score" dataKey="score" stroke="#3B82F6" strokeWidth={5} fill="#3B82F6" fillOpacity={0.1} />
-                        </RadarChart>
-                    </ResponsiveContainer>
-                 </div>
-              </Card>
-
-              <div className="lg:col-span-2 space-y-4">
-                  {data.fitCheckScores.length > 0 ? data.fitCheckScores.map((score, index) => {
-                      const Icon = getIcon(score.domain);
-                      const isExpanded = expandedDomain === score.domain;
-                      return (
-                          <div key={index} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl">
-                              <button onClick={() => setExpandedDomain(isExpanded ? null : score.domain)} className="w-full px-8 py-6 flex items-center justify-between hover:bg-grayLight/20 group">
-                                  <div className="flex items-center gap-6">
-                                      <div className={`p-4 rounded-2xl ${getStatusColor(score.score)} bg-opacity-10 text-opacity-100 shadow-sm group-hover:scale-110 transition-transform`}>
-                                          <Icon className="h-6 w-6" />
-                                      </div>
-                                      <h3 className="font-black text-xl text-blackDark">{score.domain}</h3>
-                                  </div>
-                                  <div className="flex items-center gap-6">
-                                      <div className="flex flex-col items-end">
-                                          <span className="text-2xl font-black text-blackDark">{score.score}<span className="text-sm text-grayMedium">/5</span></span>
-                                          <span className={`text-[10px] font-black uppercase tracking-widest ${score.score >= 4 ? 'text-green-600' : 'text-orange-600'}`}>{score.score >= 4 ? 'Optimal' : 'Focus nodig'}</span>
-                                      </div>
-                                      {isExpanded ? <ChevronUp className="h-6 w-6 text-grayMedium" /> : <ChevronDown className="h-6 w-6 text-grayMedium" />}
-                                  </div>
-                              </button>
-                              {isExpanded && (
-                                  <div className="px-8 pb-8 pt-2 bg-grayLight/10 border-t border-gray-50 animate-fadeIn">
-                                      <div className="space-y-4">
-                                          <p className="text-[10px] font-black text-grayMedium uppercase tracking-widest">Domein Analyse</p>
-                                          <p className="text-sm font-medium text-grayDark leading-relaxed">{score.description}</p>
-                                          <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-4">Verbetersuggestie</p>
-                                          <div className="p-6 bg-white rounded-2xl border border-primary/10 shadow-sm text-sm font-bold text-primary italic leading-relaxed">
-                                            "{score.suggestion}"
-                                          </div>
-                                      </div>
-                                  </div>
-                              )}
-                          </div>
-                      );
-                  }) : (
-                    <div className="text-center py-20 bg-white rounded-[3rem] border border-gray-100">
-                        <BarChart2 className="h-16 w-16 text-grayLight mx-auto mb-6" />
-                        <p className="text-lg font-bold text-grayMedium">Nog geen data geanalyseerd.</p>
-                        <AIButton onClick={handleAnalysis} loading={analyzing} label="Start FIT Analyse" className="mt-6" />
-                    </div>
-                  )}
-              </div>
+      {activeSubTab === 'Assessment' && !showSummary && (
+        <div className="max-w-3xl mx-auto py-10">
+          <div className="mb-12">
+            <div className="flex justify-between items-center mb-4">
+               <Badge color="blue">{currentQuestion.domain}</Badge>
+               <span className="text-[10px] font-black text-grayMedium uppercase tracking-widest">Vraag {step + 1} van {QUESTIONS.length}</span>
+            </div>
+            <div className="h-2 bg-grayLight rounded-full overflow-hidden">
+               <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }}></div>
+            </div>
           </div>
+
+          <Card className="p-12 text-center shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <Sparkles className="h-32 w-32" />
+            </div>
+            <h2 className="text-3xl font-black text-blackDark mb-6 leading-tight">{currentQuestion.question}</h2>
+            <p className="text-grayDark font-medium mb-12 italic opacity-60">"{currentQuestion.hint}"</p>
+            
+            <div className="grid grid-cols-5 gap-4">
+              {[1, 2, 3, 4, 5].map(val => (
+                <button
+                  key={val}
+                  onClick={() => handleAnswer(val)}
+                  className={`h-20 rounded-2xl flex flex-col items-center justify-center transition-all border-2 font-black text-xl
+                    ${answers[currentQuestion.id] === val ? 'bg-primary text-white border-primary shadow-xl scale-110' : 'bg-white text-grayDark border-gray-100 hover:border-primary/50'}`}
+                >
+                  {val}
+                  <span className="text-[8px] font-black uppercase mt-1 opacity-60">
+                    {val === 1 ? 'Slecht' : val === 5 ? 'Uitstekend' : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-between mt-12">
+               <button 
+                 disabled={step === 0} 
+                 onClick={() => setStep(step - 1)}
+                 className="flex items-center gap-2 text-grayMedium hover:text-grayDark disabled:opacity-30 font-bold"
+               >
+                 <ChevronLeft className="h-5 w-5" /> Vorige
+               </button>
+               {answers[currentQuestion.id] && (
+                 <button onClick={() => setStep(step + 1)} className="flex items-center gap-2 text-primary font-bold">
+                    Volgende <ChevronRight className="h-5 w-5" />
+                 </button>
+               )}
+            </div>
+          </Card>
+        </div>
       )}
 
-      {activeSubTab === 'Strategiekaart' && renderStrategyMap()}
-      
-      {activeSubTab === 'Historie' && (
-          <div className="grid grid-cols-1 gap-8 animate-fadeIn">
-              <Card title="Evolutie van FIT">
-                  <div className="h-[400px] flex items-center justify-center text-grayMedium font-bold italic border-2 border-dashed border-grayLight rounded-[2rem]">
-                      Historische vergelijking wordt opgebouwd na meerdere meetmomenten.
-                  </div>
-              </Card>
+      {showSummary && (
+        <Modal isOpen={showSummary} onClose={() => setShowSummary(false)} title="Assessment Voltooid">
+           <div className="space-y-8">
+              <div className="p-8 bg-blue-50 rounded-[2.5rem] border border-blue-100 text-center">
+                 <CheckCircle2 className="h-16 w-16 text-primary mx-auto mb-6" />
+                 <h3 className="text-2xl font-black text-blackDark mb-4">Alle 40 vragen beantwoord!</h3>
+                 <p className="text-grayDark font-medium">Onze Gemini 3 Pro engine staat klaar om je antwoorden te vertalen naar een strategisch audit rapport.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 {calculateDomainScores().map(ds => (
+                    <div key={ds.domain} className="p-6 bg-grayLight/30 rounded-3xl border border-gray-100">
+                       <p className="text-[10px] font-black text-grayMedium uppercase mb-1">{ds.domain}</p>
+                       <p className="text-2xl font-black text-blackDark">{ds.score}<span className="text-sm text-grayMedium">/5</span></p>
+                    </div>
+                 ))}
+              </div>
+              <AIButton onClick={handleAIAnalysis} loading={analyzing} label="Genereer AI Audit" className="w-full py-6 rounded-[2rem]" />
+           </div>
+        </Modal>
+      )}
+
+      {activeSubTab === 'Resultaten' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <Card className="lg:col-span-1 h-[450px]" title="FIT Radar Profiel" subtitle="ORGANISATIE BALANS">
+             <div className="h-full w-full pb-8">
+                <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                        <PolarGrid stroke="#E5E7EB" />
+                        <PolarAngleAxis dataKey="domain" tick={{ fill: '#4B5563', fontSize: 10, fontWeight: 'bold' }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
+                        <Radar name="Score" dataKey="score" stroke="#3B82F6" strokeWidth={5} fill="#3B82F6" fillOpacity={0.1} />
+                    </RadarChart>
+                </ResponsiveContainer>
+             </div>
+          </Card>
+
+          <div className="lg:col-span-2 space-y-6">
+             {data.fitCheckScores.length > 0 ? data.fitCheckScores.map((score, i) => {
+               const Icon = getDomainIcon(score.domain);
+               return (
+                <Card key={i} className="p-8 hover:shadow-2xl transition-all group">
+                   <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-6">
+                        <div className="h-14 w-14 bg-grayLight rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                          <Icon className="h-7 w-7" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black text-blackDark">{score.domain}</h3>
+                          <Badge color={score.score >= 4 ? 'green' : score.score >= 3 ? 'blue' : 'orange'}>
+                            {score.score >= 4 ? 'Sterk' : score.score >= 3 ? 'Stabiel' : 'Kritiek'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-4xl font-black text-blackDark">{score.score}<span className="text-sm text-grayMedium">/5</span></p>
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${score.trend === 'up' ? 'text-green-500' : 'text-orange-500'}`}>Trend: {score.trend}</p>
+                      </div>
+                   </div>
+                   <div className="space-y-4">
+                      <p className="text-sm font-medium text-grayDark leading-relaxed border-l-4 border-gray-100 pl-6 italic">"{score.description}"</p>
+                      <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
+                         <p className="text-[10px] font-black text-primary uppercase mb-2 flex items-center gap-2"><Sparkles className="h-3 w-3" /> Strategische Actie</p>
+                         <p className="text-sm font-bold text-primary">{score.suggestion}</p>
+                      </div>
+                   </div>
+                </Card>
+               )
+             }) : (
+              <div className="text-center py-20 bg-white rounded-[3rem] border border-gray-100 opacity-40">
+                  <BarChart2 className="h-16 w-16 mx-auto mb-4 text-grayMedium" />
+                  <p className="text-lg font-bold">Nog geen audit resultaten beschikbaar.</p>
+                  <Button onClick={() => setActiveSubTab('Assessment')} className="mt-6">Start Assessment</Button>
+              </div>
+             )}
           </div>
+        </div>
+      )}
+
+      {activeSubTab === 'Benchmark' && (
+        <Card title="Sector Vergelijking" subtitle="BENCHMARK DATA">
+           <div className="p-20 text-center opacity-30">
+              <Info className="h-12 w-12 mx-auto mb-4" />
+              <p className="font-black uppercase tracking-widest">Sector-specifieke benchmark data wordt geladen na 3 assessments.</p>
+           </div>
+        </Card>
       )}
     </div>
   );

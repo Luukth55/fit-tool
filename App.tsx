@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
@@ -17,6 +17,8 @@ import Method from './pages/Method';
 import Privacy from './pages/Privacy';
 import Layout from './components/Layout';
 import { View, AppData, Domain, UserState, ActionItem, ValueWheel, PerformanceMetric } from './types';
+import { ErrorBoundary } from './components/Shared';
+import { supabase, saveAppDataToCloud, loadAppDataFromCloud } from './services/supabaseClient';
 
 const STORAGE_KEY = 'fit_tool_data';
 
@@ -79,7 +81,7 @@ const initialData: AppData = {
   mission: "Wij helpen organisaties duurzaam groeien door slimme technologie in te zetten voor complexe vraagstukken.",
   vision: "In 2030 zijn wij de leidende partner in digitale transformatie voor het Europese MKB.",
   strategy: "Focus op schaalbare SaaS-oplossingen, klantgerichtheid verhogen door data-gedreven inzichten, en talentontwikkeling prioriteren.",
-  strategicKPIs: [], // Deprecated in favor of performanceMetrics
+  strategicKPIs: [], 
   performanceMetrics: [
     ...createStandardMetrics(ValueWheel.FINANCIAL),
     ...createStandardMetrics(ValueWheel.CUSTOMER),
@@ -104,8 +106,8 @@ const initialData: AppData = {
   ],
   externalAnalysis: [],
   actions: [
-    { id: '1', title: "Implementeer nieuw CRM", type: 'Changing', status: 'doing', owner: 'Jan', deadline: '2025-06-01', impact: 5, linkedId: 'g1', origin: 'Goal', riskLevel: 'High' },
-    { id: '2', title: "Sales training Q4", type: 'Running', status: 'todo', owner: 'Marieke', deadline: '2025-11-15', impact: 3, origin: 'Manual', riskLevel: 'Medium' },
+    { id: '1', title: "Implementeer nieuw CRM", type: 'Changing', status: 'doing', owner: 'Jan', deadline: '2025-06-01', impact: 5, effort: 4, linkedId: 'g1', origin: 'Goal', riskLevel: 'High' },
+    { id: '2', title: "Sales training Q4", type: 'Running', status: 'todo', owner: 'Marieke', deadline: '2025-11-15', impact: 3, effort: 2, origin: 'Manual', riskLevel: 'Medium' },
   ],
   fitCheckScores: [],
   inrichting: {
@@ -149,48 +151,80 @@ const initialData: AppData = {
     },
     gapAnalysis: []
   },
-  history: []
+  history: [],
+  alerts: []
 };
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.LANDING);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [user, setUser] = useState<UserState>(() => {
     const saved = localStorage.getItem('fit_tool_user');
     return saved ? JSON.parse(saved) : { isAuthenticated: false, name: "", organization: "", email: "", role: "user" };
   });
   
-  const [appData, setAppData] = useState<AppData>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Migration check for new performance metrics or structure
-      if (!parsed.performanceMetrics || parsed.performanceMetrics.length === 0) {
-        return { ...initialData, ...parsed, performanceMetrics: initialData.performanceMetrics, wheelContext: initialData.wheelContext };
-      }
-      return parsed;
-    }
-    return initialData;
-  });
+  const [appData, setAppData] = useState<AppData>(initialData);
 
-  // Persistence Effects
+  // Supabase Auth Listeners
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-  }, [appData]);
+    const initAuth = async () => {
+        if (!supabase) {
+            setIsInitialLoading(false);
+            return;
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const userData = {
+                isAuthenticated: true,
+                name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || "User",
+                organization: session.user.user_metadata?.organization || "My Org",
+                email: session.user.email || "",
+                role: 'user'
+            };
+            setUser(userData);
+            const cloudData = await loadAppDataFromCloud(session.user.id);
+            if (cloudData) setAppData(cloudData);
+            if (currentView === View.LANDING || currentView === View.LOGIN) {
+                setCurrentView(View.DASHBOARD);
+            }
+        } else {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) setAppData(JSON.parse(saved));
+        }
+        setIsInitialLoading(false);
+    };
+
+    initAuth();
+
+    if (!supabase) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+             const cloudData = await loadAppDataFromCloud(session.user.id);
+             if (cloudData) setAppData(cloudData);
+        } else if (event === 'SIGNED_OUT') {
+            handleLogout();
+        }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialLoading) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        if (user.isAuthenticated && supabase) {
+            setIsSyncing(true);
+            supabase.auth.getUser().then(({ data: { user: sbUser } }) => {
+                if (sbUser) saveAppDataToCloud(sbUser.id, appData).finally(() => setIsSyncing(false));
+            });
+        }
+    }
+  }, [appData, user.isAuthenticated, isInitialLoading]);
 
   useEffect(() => {
     localStorage.setItem('fit_tool_user', JSON.stringify(user));
   }, [user]);
-
-  // Autonomous Monitoring Effect (Simulates a running engine)
-  useEffect(() => {
-    if (user.isAuthenticated) {
-      const interval = setInterval(() => {
-        // Here we could trigger small AI audits or update "drift" scores
-        console.log("Strategic Engine: Monitoring health...");
-      }, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user.isAuthenticated]);
 
   const handleUpdate = (newData: Partial<AppData>) => setAppData(prev => ({ ...prev, ...newData }));
 
@@ -199,11 +233,25 @@ const App: React.FC = () => {
     setCurrentView(View.DASHBOARD);
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
+    if (supabase) supabase.auth.signOut();
     setUser({ isAuthenticated: false, name: "", organization: "", email: "", role: "user" });
     setCurrentView(View.LANDING);
     localStorage.removeItem('fit_tool_user');
-  };
+  }, []);
+
+  if (isInitialLoading) {
+      return (
+          <div className="min-h-screen bg-white flex items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                  <div className="bg-primary text-white p-4 rounded-3xl font-black text-3xl shadow-2xl animate-bounce">FIT</div>
+                  <div className="h-1 w-32 bg-grayLight rounded-full overflow-hidden">
+                      <div className="h-full bg-primary animate-pulse w-full"></div>
+                  </div>
+              </div>
+          </div>
+      );
+  }
 
   const renderView = () => {
     switch (currentView) {
@@ -216,7 +264,6 @@ const App: React.FC = () => {
       case View.FITCHECK: return <FitCheck data={appData} onUpdate={handleUpdate} onNavigate={setCurrentView} />;
       case View.ANALYSE: return <Analyse data={appData} onNavigate={setCurrentView} onUpdate={handleUpdate} />;
       case View.SETTINGS: return <Settings data={appData} user={user} onLogout={handleLogout} />;
-      // Footer Pages
       case View.FEATURES: return <ProductFeatures onNavigate={setCurrentView} />;
       case View.AI_ENGINE: return <AIEngine onNavigate={setCurrentView} />;
       case View.PRICING: return <Pricing onNavigate={setCurrentView} />;
@@ -227,7 +274,6 @@ const App: React.FC = () => {
     }
   };
 
-  // If viewing a footer page, we don't necessarily need the full dashboard layout
   const isFooterPage = [View.FEATURES, View.AI_ENGINE, View.PRICING, View.ABOUT_US, View.METHOD, View.PRIVACY].includes(currentView);
 
   if (!user.isAuthenticated || isFooterPage) {
@@ -237,9 +283,18 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout currentView={currentView} onNavigate={setCurrentView} user={user} onLogout={handleLogout} data={appData}>
-      {renderView()}
-    </Layout>
+    <ErrorBoundary>
+        <Layout 
+            currentView={currentView} 
+            onNavigate={setCurrentView} 
+            user={user} 
+            onLogout={handleLogout} 
+            data={appData}
+            isSyncing={isSyncing}
+        >
+          {renderView()}
+        </Layout>
+    </ErrorBoundary>
   );
 };
 

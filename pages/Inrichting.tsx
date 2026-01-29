@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { AppData, InrichtingData, ActionItem, GapAnalysisItem, FitLevel, View } from '../types';
 import { Card, Tabs, Input, Select, TextArea, AIButton, Button, Badge } from '../components/Shared';
@@ -24,7 +25,8 @@ import {
   Search,
   Fingerprint,
   Box,
-  Truck
+  Truck,
+  MessageSquareQuote
 } from 'lucide-react';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 
@@ -54,6 +56,7 @@ const Inrichting: React.FC<Props> = ({ data, onUpdate, onAddActions, onNavigate 
   }
 
   const addActionFromGap = (gap: GapAnalysisItem) => {
+    // Added missing 'effort' property to satisfy ActionItem interface requirements
     const newAction: ActionItem = {
       id: Date.now().toString(),
       title: gap.actionTitle,
@@ -62,6 +65,7 @@ const Inrichting: React.FC<Props> = ({ data, onUpdate, onAddActions, onNavigate 
       owner: 'Strategisch Team',
       deadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       impact: gap.score,
+      effort: 3, // Default effort value
       riskLevel: 'Medium',
       origin: 'GapAnalysis',
       description: gap.actionDescription
@@ -166,15 +170,23 @@ const Inrichting: React.FC<Props> = ({ data, onUpdate, onAddActions, onNavigate 
                         <TextArea label="Overlegstructuur" rows={5} value={data.inrichting.structure.meetingStructure} onChange={e => updateInrichting('structure', 'meetingStructure', e.target.value)} placeholder="Frequentie en doel van overleggen." />
                         <TextArea label="Motivering" rows={4} value={data.inrichting.structure.choiceReason} onChange={e => updateInrichting('structure', 'choiceReason', e.target.value)} placeholder="Waarom deze structuur?" />
                     </div>
-                    <div className="bg-grayLight/20 p-8 rounded-[2rem] border-2 border-dashed border-grayMedium/20 text-center flex flex-col items-center justify-center">
-                        <p className="text-xs font-black text-grayMedium uppercase mb-6">Visualisatie</p>
+                    <div className="bg-grayLight/20 p-8 rounded-[2rem] border-2 border-dashed border-grayMedium/20 text-center flex flex-col items-center justify-center overflow-hidden">
+                        <p className="text-xs font-black text-grayMedium uppercase mb-6">Organogram Analyse</p>
                         {data.inrichting.structure.organogramData ? (
-                            <div className="space-y-4">
+                            <div className="space-y-4 w-full">
                                 <img src={data.inrichting.structure.organogramData} className="max-h-48 mx-auto rounded-xl shadow-lg border-4 border-white" />
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 justify-center">
                                     <Button size="sm" variant="outline" onClick={() => updateInrichting('structure', 'organogramData', undefined)}>Wissen</Button>
                                     <Button size="sm" onClick={() => fileInputRef.current?.click()}>Nieuw</Button>
                                 </div>
+                                {data.inrichting.structure.organogramAnalysis && (
+                                  <div className="mt-6 p-5 bg-white rounded-2xl border border-gray-100 text-left relative">
+                                     <MessageSquareQuote className="absolute -top-3 -left-3 h-6 w-6 text-primary" />
+                                     <p className="text-[11px] font-bold text-grayDark leading-relaxed italic">
+                                       {data.inrichting.structure.organogramAnalysis}
+                                     </p>
+                                  </div>
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-4">

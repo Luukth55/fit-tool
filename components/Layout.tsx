@@ -14,7 +14,9 @@ import {
   X,
   PieChart,
   Menu,
-  Bell
+  Bell,
+  CloudLightning,
+  CloudCheck
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -24,6 +26,7 @@ interface LayoutProps {
   user: UserState;
   onLogout: () => void;
   data: AppData;
+  isSyncing?: boolean;
 }
 
 const SidebarItem: React.FC<{ 
@@ -45,7 +48,7 @@ const SidebarItem: React.FC<{
   </button>
 );
 
-const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate, user, onLogout, data }) => {
+const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate, user, onLogout, data, isSyncing }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const menuItems = [
@@ -124,6 +127,21 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate, user
             </div>
             
             <div className="flex items-center gap-3 md:gap-6">
+                {/* Cloud Sync Status */}
+                <div className="hidden sm:flex items-center gap-2 mr-4">
+                    {isSyncing ? (
+                        <div className="flex items-center gap-2 text-grayMedium">
+                            <CloudLightning className="h-4 w-4 animate-pulse" />
+                            <span className="text-[8px] font-black uppercase">Syncing...</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-green-500">
+                            <CloudCheck className="h-4 w-4" />
+                            <span className="text-[8px] font-black uppercase">Cloud Secured</span>
+                        </div>
+                    )}
+                </div>
+
                 <div className="hidden md:flex items-center bg-grayLight/40 rounded-2xl px-5 py-2.5 border border-gray-100 gap-4">
                    <div className="w-24 lg:w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div className="bg-primary h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(59,130,246,0.5)]" style={{ width: `${totalProgress}%` }}></div>

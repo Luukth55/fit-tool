@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { View, UserState } from '../types';
 import { Button, Input, Card, Badge } from '../components/Shared';
-import { ShieldCheck, ArrowRight, Github, Chrome, Mail, Lock, Zap, Sparkles } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Github, Chrome, Mail, Lock, Zap, Sparkles, AlertCircle } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 
 interface Props {
   onLogin: (user: UserState) => void;
@@ -11,12 +12,49 @@ interface Props {
 
 const LoginPage: React.FC<Props> = ({ onLogin, onNavigate }) => {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
 
-  const handleDemoLogin = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) {
+        // Fallback for missing Supabase config
+        setError("Backend niet geconfigureerd. Gebruik lokale demo.");
+        return handleDemoLogin();
+    }
+    
     setLoading(true);
-    // Simulate API call
+    setError(null);
+    
+    try {
+        const { data, error: sbError } = isRegistering 
+            ? await supabase.auth.signUp({ email, password })
+            : await supabase.auth.signInWithPassword({ email, password });
+
+        if (sbError) throw sbError;
+        
+        if (data.session) {
+            onLogin({
+                isAuthenticated: true,
+                name: data.user?.user_metadata?.full_name || email.split('@')[0],
+                organization: data.user?.user_metadata?.organization || "My Organization",
+                email: email,
+                role: 'user'
+            });
+        } else if (isRegistering) {
+            setError("Check je email voor de bevestigingslink!");
+        }
+    } catch (err: any) {
+        setError(err.message || "Fout bij inloggen");
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = () => {
+    setLoading(true);
     setTimeout(() => {
       onLogin({
         isAuthenticated: true,
@@ -77,28 +115,24 @@ const LoginPage: React.FC<Props> = ({ onLogin, onNavigate }) => {
           </div>
 
           <div className="text-center md:text-left">
-            <h1 className="text-4xl font-black text-blackDark tracking-tight mb-4">Welkom terug.</h1>
-            <p className="text-grayMedium font-bold">Voer je gegevens in om toegang te krijgen.</p>
+            <h1 className="text-4xl font-black text-blackDark tracking-tight mb-4">{isRegistering ? 'Nieuw account.' : 'Welkom terug.'}</h1>
+            <p className="text-grayMedium font-bold">{isRegistering ? 'Start vandaag met je organisatie transformatie.' : 'Voer je gegevens in om toegang te krijgen.'}</p>
           </div>
 
-          <div className="space-y-4">
-             <Button variant="outline" className="w-full justify-center h-14 rounded-2xl border-gray-100 bg-white hover:bg-gray-50 text-grayDark font-bold">
-                <Chrome className="h-5 w-5 mr-3" /> Inloggen met Google
-             </Button>
-             <div className="flex items-center gap-4 py-4">
-                <div className="h-px bg-gray-200 flex-1"></div>
-                <span className="text-[10px] font-black text-grayMedium uppercase tracking-[0.2em]">Of met email</span>
-                <div className="h-px bg-gray-200 flex-1"></div>
-             </div>
-          </div>
+          <form onSubmit={handleAuth} className="space-y-6">
+            {error && (
+                <div className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 text-xs font-bold flex items-center gap-3">
+                    <AlertCircle className="h-4 w-4" /> {error}
+                </div>
+            )}
 
-          <form onSubmit={handleDemoLogin} className="space-y-6">
             <div className="relative">
               <Mail className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-grayMedium" />
               <input 
                 type="email" 
                 placeholder="Email adres"
                 value={email}
+                required
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-16 pr-6 py-5 border border-gray-100 bg-white rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-sm font-bold text-blackDark"
               />
@@ -108,17 +142,22 @@ const LoginPage: React.FC<Props> = ({ onLogin, onNavigate }) => {
               <input 
                 type="password" 
                 placeholder="Wachtwoord"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-16 pr-6 py-5 border border-gray-100 bg-white rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all text-sm font-bold text-blackDark"
               />
             </div>
             
-            <div className="flex justify-between items-center px-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                <span className="text-xs font-bold text-grayMedium group-hover:text-grayDark transition-colors">Onthoud mij</span>
-              </label>
-              <a href="#" className="text-xs font-bold text-primary hover:underline">Wachtwoord vergeten?</a>
-            </div>
+            {!isRegistering && (
+                <div className="flex justify-between items-center px-2">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                    <span className="text-xs font-bold text-grayMedium group-hover:text-grayDark transition-colors">Onthoud mij</span>
+                </label>
+                <a href="#" className="text-xs font-bold text-primary hover:underline">Wachtwoord vergeten?</a>
+                </div>
+            )}
 
             <Button 
               type="submit" 
@@ -131,13 +170,28 @@ const LoginPage: React.FC<Props> = ({ onLogin, onNavigate }) => {
                    Bezig...
                 </div>
               ) : (
-                <>Inloggen <ArrowRight className="ml-2 h-5 w-5" /></>
+                <>{isRegistering ? 'Account aanmaken' : 'Inloggen'} <ArrowRight className="ml-2 h-5 w-5" /></>
               )}
             </Button>
           </form>
 
+          <div className="flex items-center gap-4 py-4">
+                <div className="h-px bg-gray-200 flex-1"></div>
+                <span className="text-[10px] font-black text-grayMedium uppercase tracking-[0.2em]">Of</span>
+                <div className="h-px bg-gray-200 flex-1"></div>
+          </div>
+
+          <div className="space-y-4">
+             <Button variant="outline" onClick={() => handleDemoLogin()} className="w-full justify-center h-14 rounded-2xl border-gray-100 bg-white hover:bg-gray-50 text-grayDark font-bold">
+                Bekijk demo account (Zonder inlog)
+             </Button>
+          </div>
+
           <p className="text-center text-sm font-bold text-grayMedium">
-            Nog geen account? <button onClick={() => onNavigate(View.LANDING)} className="text-primary hover:underline">Vraag een demo aan</button>
+            {isRegistering ? 'Al een account?' : 'Nog geen account?'} 
+            <button onClick={() => setIsRegistering(!isRegistering)} className="ml-2 text-primary hover:underline">
+                {isRegistering ? 'Inloggen' : 'Vraag een demo aan'}
+            </button>
           </p>
 
           <div className="pt-10 border-t border-gray-100 flex items-center justify-center gap-8">

@@ -1,6 +1,9 @@
 
-import React from 'react';
-import { LucideIcon, X, Sparkles } from 'lucide-react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { LucideIcon, X, Sparkles, AlertCircle } from 'lucide-react';
+import DOMPurify from 'dompurify';
+
+export const sanitize = (text: string) => DOMPurify.sanitize(text);
 
 export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger', size?: 'sm' | 'md' | 'lg' }> = ({ 
   className = '', 
@@ -165,3 +168,45 @@ export const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: stri
         </div>
     );
 };
+
+// Global Error Boundary for Production Monitoring
+interface ErrorBoundaryProps {
+    children?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+    hasError: boolean;
+}
+
+// Fix: Use explicit interfaces and extend Component correctly to avoid state/props issues
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+    constructor(props: ErrorBoundaryProps) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(_: Error): ErrorBoundaryState {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        // Here you would log to Sentry or similar
+        console.error("Uncaught error:", error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
+                    <div className="max-w-md w-full bg-white p-12 rounded-[3rem] shadow-2xl text-center border border-red-100">
+                        <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-6" />
+                        <h2 className="text-2xl font-black text-blackDark mb-4">Oeps! Er ging iets mis.</h2>
+                        <p className="text-grayDark mb-8">Onze systemen hebben een onverwachte fout geregistreerd. Herlaad de pagina of probeer het later opnieuw.</p>
+                        <Button onClick={() => window.location.reload()} className="w-full">Pagina Herladen</Button>
+                    </div>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}

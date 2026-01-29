@@ -102,11 +102,13 @@ export interface ExternalFactor {
   actions?: string;
   futureTrend?: string;
   sources?: ExternalSource[];
+  horizon?: 'Kort' | 'Middellang' | 'Lang';
+  impactScore?: number; // 1-10
 }
 
 export type ActionType = 'Running' | 'Changing';
 export type ActionStatus = 'todo' | 'doing' | 'done';
-export type ActionOrigin = 'Goal' | 'GapAnalysis' | 'FITCheck' | 'Manual';
+export type ActionOrigin = 'Goal' | 'GapAnalysis' | 'FITCheck' | 'Manual' | 'AISuggestion';
 
 export interface ActionItem {
   id: string;
@@ -116,11 +118,15 @@ export interface ActionItem {
   owner: string;
   deadline: string;
   impact: number;
+  effort: number; // 1-5
   riskLevel?: 'Low' | 'Medium' | 'High';
   domain?: Domain;
   description?: string;
   origin?: ActionOrigin;
   linkedId?: string; 
+  dependencies?: string[]; // IDs of other actions
+  progress?: number; // 0-100
+  aiCoaching?: string;
 }
 
 export interface FitCheckScore {
@@ -151,6 +157,7 @@ export type FitLevel = 'Good' | 'Partial' | 'Bad';
 
 export interface GapAnalysisItem {
   goal: string;
+  goalId?: string;
   structureFit: FitLevel;
   resourcesFit: FitLevel;
   cultureFit: FitLevel;
@@ -159,6 +166,18 @@ export interface GapAnalysisItem {
   type: ActionType;
   actionTitle: string;
   actionDescription: string;
+  aiInsight?: string;
+}
+
+export interface AIAlert {
+  id: string;
+  type: 'warning' | 'opportunity' | 'info';
+  priority: 1 | 2 | 3;
+  title: string;
+  message: string;
+  linkedTo?: string;
+  actionLabel?: string;
+  actionView?: View;
 }
 
 export interface InrichtingData {
@@ -221,4 +240,5 @@ export interface AppData {
   fitCheckScores: FitCheckScore[];
   inrichting: InrichtingData;
   history: HistoryPoint[];
+  alerts: AIAlert[];
 }
