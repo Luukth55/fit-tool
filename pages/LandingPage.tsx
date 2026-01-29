@@ -20,7 +20,6 @@ import {
   Layers,
   ArrowUpRight
 } from 'lucide-react';
-// Fix: Import Badge which was used but missing from the imports
 import { Button, Badge } from '../components/Shared';
 
 interface Props {
@@ -30,7 +29,6 @@ interface Props {
 const LandingPage: React.FC<Props> = ({ onNavigate }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   
-  // Basic scroll reveal intersection observer
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
@@ -64,8 +62,8 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
             </div>
             
             <div className="hidden md:flex items-center space-x-10">
-              <a href="#features" className="text-grayDark hover:text-primary text-sm font-bold transition-colors">Features</a>
-              <a href="#hoe-het-werkt" className="text-grayDark hover:text-primary text-sm font-bold transition-colors">Methode</a>
+              <button onClick={() => onNavigate(View.FEATURES)} className="text-grayDark hover:text-primary text-sm font-bold transition-colors">Features</button>
+              <button onClick={() => onNavigate(View.METHOD)} className="text-grayDark hover:text-primary text-sm font-bold transition-colors">Methode</button>
               <button onClick={() => onNavigate(View.LOGIN)} className="text-grayDark hover:text-primary text-sm font-bold transition-colors">Log in</button>
               <Button variant="primary" onClick={() => onNavigate(View.LOGIN)} className="rounded-xl px-8 shadow-blue-500/20">
                 Start gratis analyse
@@ -83,15 +81,15 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-b border-gray-100 px-6 py-8 space-y-6 shadow-2xl animate-fade-in-up">
-             <a href="#features" className="block text-grayDark font-bold text-lg" onClick={() => setMobileMenuOpen(false)}>Features</a>
-             <a href="#hoe-het-werkt" className="block text-grayDark font-bold text-lg" onClick={() => setMobileMenuOpen(false)}>Methode</a>
-             <button onClick={() => onNavigate(View.LOGIN)} className="block text-grayDark font-bold text-lg">Log in</button>
+             <button onClick={() => {onNavigate(View.FEATURES); setMobileMenuOpen(false);}} className="block w-full text-left text-grayDark font-bold text-lg">Features</button>
+             <button onClick={() => {onNavigate(View.METHOD); setMobileMenuOpen(false);}} className="block w-full text-left text-grayDark font-bold text-lg">Methode</button>
+             <button onClick={() => onNavigate(View.LOGIN)} className="block w-full text-left text-grayDark font-bold text-lg">Log in</button>
              <Button variant="primary" className="w-full justify-center" onClick={() => onNavigate(View.LOGIN)}>Start gratis analyse</Button>
           </div>
         )}
       </nav>
 
-      {/* 1. Hero Section */}
+      {/* Hero Section */}
       <section className="relative pt-20 pb-28 md:pt-32 md:pb-40 overflow-hidden bg-gradient-to-b from-lightBlue/30 to-white">
         <div className="absolute top-0 right-0 -z-10 w-1/2 h-1/2 bg-blue-50 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-0 left-0 -z-10 w-1/3 h-1/3 bg-purple-50 blur-[100px] rounded-full"></div>
@@ -114,12 +112,11 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
             <Button variant="primary" size="lg" className="rounded-2xl px-12 group" onClick={() => onNavigate(View.LOGIN)}>
               Start gratis analyse <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
             </Button>
-            <Button variant="outline" size="lg" className="rounded-2xl px-12">
+            <Button variant="outline" size="lg" className="rounded-2xl px-12" onClick={() => onNavigate(View.FEATURES)}>
               Bekijk demo
             </Button>
           </div>
           
-          {/* Hero Visual Mockup */}
           <div className="relative w-full max-w-5xl mx-auto reveal" style={{ transitionDelay: '0.4s' }}>
             <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-[2.5rem] blur-2xl"></div>
             <div className="relative bg-white rounded-[2rem] shadow-2xl border border-gray-100 overflow-hidden group">
@@ -144,7 +141,6 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
                     <div className="absolute inset-0 bg-primary/5 rounded-full"></div>
                     <div className="absolute inset-10 bg-primary/10 rounded-full"></div>
                     <div className="h-full w-full p-4 flex items-center justify-center">
-                       {/* Abstract Radar Mockup */}
                        <div className="grid grid-cols-2 gap-2 h-full w-full rotate-45">
                           <div className="bg-primary/20 rounded-tl-full border-2 border-primary/40"></div>
                           <div className="bg-purple-500/20 rounded-tr-full"></div>
@@ -160,7 +156,6 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
               </div>
             </div>
             
-            {/* Float badges around the mockup */}
             <div className="absolute -top-10 -right-10 hidden lg:block animate-float" style={{ animationDelay: '1s' }}>
                 <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 flex items-center gap-3">
                    <div className="h-10 w-10 bg-green-100 rounded-xl flex items-center justify-center">
@@ -176,23 +171,7 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* 2. Vertrouwd door professionals */}
-      <section className="py-20 bg-white border-y border-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-sm font-bold text-grayMedium uppercase tracking-[0.2em] mb-12">Vertrouwd door strategen, consultants en directies.</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-60 grayscale hover:grayscale-0 transition-all duration-700">
-             {['ZORG', 'OVERHEID', 'MKB', 'NON-PROFIT'].map(badge => (
-               <div key={badge} className="group cursor-default">
-                  <div className="text-3xl md:text-4xl font-black text-grayMedium group-hover:text-primary transition-colors tracking-tighter italic">
-                    {badge}
-                  </div>
-               </div>
-             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Probleem & Oplossing */}
+      {/* Probleem & Oplossing */}
       <section className="py-28 md:py-40 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-20 reveal">
@@ -245,126 +224,9 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
               <p className="text-lightBlue/80 text-xl leading-relaxed mb-10 max-w-2xl">
                 Wij transformeren complexe organisatiedynamiek naar een helder, interactief dashboard. Real-time inzicht in de 'fit' van je organisatie.
               </p>
-              <Button variant="primary" size="lg" className="rounded-2xl px-12 bg-white text-deepBlue hover:bg-lightBlue" onClick={() => onNavigate(View.LOGIN)}>
-                Ontdek onze oplossing
+              <Button variant="primary" size="lg" className="rounded-2xl px-12 bg-white text-deepBlue hover:bg-lightBlue" onClick={() => onNavigate(View.METHOD)}>
+                Ontdek onze methode
               </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Product Features */}
-      <section id="features" className="py-28 md:py-40 bg-grayLight/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-20 gap-6 reveal">
-            <div className="max-w-2xl">
-              <h2 className="text-4xl md:text-5xl font-black text-blackDark mb-6 tracking-tight">Krachtige modules <br />voor elke fase</h2>
-              <p className="text-xl text-grayDark leading-relaxed">Alles wat je nodig hebt om van ambitie naar resultaat te gaan.</p>
-            </div>
-            <Button variant="outline" className="rounded-xl border-gray-200 text-grayDark">Bekijk alle functionaliteiten</Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, i) => (
-              <div key={feature.id} className="reveal bg-white p-10 rounded-3xl shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 group" style={{ transitionDelay: `${i * 0.1}s` }}>
-                <div className="h-16 w-16 bg-grayLight/50 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-primary/10 transition-colors">
-                  {feature.icon}
-                </div>
-                <h3 className="text-2xl font-black text-blackDark mb-4">{feature.label}</h3>
-                <p className="text-grayDark leading-relaxed mb-8">{feature.desc}</p>
-                <div className="flex items-center text-primary font-bold gap-2 cursor-pointer group/link">
-                  Meer info <ArrowUpRight className="h-4 w-4 transition-transform group-hover/link:translate-x-1 group-hover/link:-translate-y-1" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Hoe het werkt */}
-      <section id="hoe-het-werkt" className="py-28 md:py-40 bg-white overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-20 reveal">
-             <h2 className="text-4xl md:text-6xl font-black text-blackDark mb-6 tracking-tight">Zo werkt de FIT Tool — <br /><span className="text-primary">simpel en slim.</span></h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 reveal" style={{ transitionDelay: '0.2s' }}>
-            {[
-              { id: "01", title: "Vul je strategie in", desc: "Onze AI helpt je bij het verwoorden van je kernboodschap." },
-              { id: "02", title: "Analyseer je inrichting", desc: "Leg de structuur, cultuur en mensen van je organisatie vast." },
-              { id: "03", title: "AI bepaalt de gaps", desc: "Ontdek direct waar de inrichting schuurt met je doelen." },
-              { id: "04", title: "Zet acties uit", desc: "Zet knelpunten om naar verbeterprojecten en acties." },
-              { id: "05", title: "Monitor voortgang", desc: "Houd de vinger aan de pols via je live dashboard." }
-            ].map((step, i) => (
-              <div key={i} className="relative group p-8 rounded-[2rem] bg-white border border-gray-100 hover:border-primary/30 hover:shadow-xl transition-all duration-500">
-                <div className="text-6xl font-black text-grayLight mb-6 group-hover:text-primary/10 transition-colors">{step.id}</div>
-                <h4 className="text-xl font-black text-blackDark mb-3 leading-tight">{step.title}</h4>
-                <p className="text-grayDark text-sm leading-relaxed">{step.desc}</p>
-                {i < 4 && <div className="hidden lg:block absolute top-1/2 -right-3 transform -translate-y-1/2 z-10 text-grayLight"><ChevronRight className="h-6 w-6" /></div>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 6. Testimonials */}
-      <section className="py-28 md:py-40 bg-grayLight/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20 reveal">
-             <h2 className="text-4xl md:text-5xl font-black text-blackDark">Wat onze gebruikers zeggen</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-             {[
-               { 
-                 quote: "Geen losse Excel-sheets meer — eindelijk grip op onze veranderkracht. We zien direct waar het schuurt.", 
-                 author: "Daan van Dam", 
-                 role: "Strategisch Adviseur, Zorgsector" 
-               },
-               { 
-                 quote: "De AI-analyse gaf ons inzichten die we zelf nooit hadden gezien. Het legde haarscherp de vinger op de zere plek.", 
-                 author: "Linda de Boer", 
-                 role: "Directeur, MKB Non-Profit" 
-               }
-             ].map((t, i) => (
-               <div key={i} className="reveal bg-white p-12 rounded-[3rem] shadow-sm border border-gray-100" style={{ transitionDelay: `${i * 0.2}s` }}>
-                 <div className="flex gap-1 mb-8">
-                   {[1,2,3,4,5].map(s => <CheckCircle2 key={s} className="h-5 w-5 text-primary fill-primary/10" />)}
-                 </div>
-                 <blockquote className="text-2xl font-bold text-blackDark leading-relaxed mb-10 italic">"{t.quote}"</blockquote>
-                 <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 bg-primary text-white rounded-2xl flex items-center justify-center font-black text-xl">
-                      {t.author.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="font-black text-blackDark text-lg">{t.author}</div>
-                      <div className="text-primary font-bold text-sm uppercase tracking-wider">{t.role}</div>
-                    </div>
-                 </div>
-               </div>
-             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 7. Call-to-Action (herhaling) */}
-      <section className="py-28 md:py-40 bg-white overflow-hidden">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-br from-primary to-blue-800 rounded-[3.5rem] p-10 md:p-24 text-center text-white relative shadow-2xl shadow-blue-500/30 reveal">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-            <div className="relative z-10">
-              <h2 className="text-4xl md:text-6xl font-black mb-10 leading-tight">
-                Klaar om je strategie écht <br className="hidden md:block" /> te laten werken?
-              </h2>
-              <div className="flex flex-col sm:flex-row justify-center gap-5">
-                <Button variant="primary" size="lg" className="rounded-2xl px-12 bg-white text-primary hover:bg-lightBlue border-none h-16 text-xl shadow-2xl" onClick={() => onNavigate(View.LOGIN)}>
-                  Start gratis analyse
-                </Button>
-                <Button variant="outline" size="lg" className="rounded-2xl px-12 border-white/30 text-white hover:bg-white/10 h-16 text-xl">
-                  Plan een demo
-                </Button>
-              </div>
-              <p className="mt-10 text-white/60 font-medium">Geen creditcard nodig. In 2 minuten live.</p>
             </div>
           </div>
         </div>
@@ -386,17 +248,17 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
             <div>
               <h4 className="font-black text-xl mb-8">Product</h4>
               <ul className="space-y-4 text-grayMedium">
-                <li><a href="#" className="hover:text-primary transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">AI Engine</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Pricing</a></li>
+                <li><button onClick={() => onNavigate(View.FEATURES)} className="hover:text-primary transition-colors">Features</button></li>
+                <li><button onClick={() => onNavigate(View.AI_ENGINE)} className="hover:text-primary transition-colors">AI Engine</button></li>
+                <li><button onClick={() => onNavigate(View.PRICING)} className="hover:text-primary transition-colors">Pricing</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-black text-xl mb-8">Bedrijf</h4>
               <ul className="space-y-4 text-grayMedium">
-                <li><a href="#" className="hover:text-primary transition-colors">Over ons</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Privacy</a></li>
+                <li><button onClick={() => onNavigate(View.ABOUT_US)} className="hover:text-primary transition-colors">Over ons</button></li>
+                <li><button onClick={() => onNavigate(View.METHOD)} className="hover:text-primary transition-colors">Methode</button></li>
+                <li><button onClick={() => onNavigate(View.PRIVACY)} className="hover:text-primary transition-colors">Privacy</button></li>
               </ul>
             </div>
           </div>

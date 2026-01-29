@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { AppData, FitCheckScore, ExternalFactor, View, CopilotInsight, ExternalSource, StrategicGoal } from "../types";
+import { AppData, FitCheckScore, ExternalFactor, View, ExternalSource, StrategicGoal } from "../types";
 
 const safeParse = (text: string, fallback: any) => {
     try {
@@ -53,51 +53,6 @@ export const getElementDetailFeedback = async (element: any, type: string, data:
         return response.text || "Geen specifieke feedback beschikbaar.";
     } catch (e) {
         return "De AI kon geen verbinding maken voor dit specifieke inzicht.";
-    }
-}
-
-export const getCopilotInsights = async (data: AppData, currentView: View): Promise<{ mainAdvice: string, structuredInsights: CopilotInsight[] }> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
-            contents: `
-                Je bent de FIT Tool Strategische Co-piloot. Je redeneert over meerdere tabs heen.
-                
-                CONTEXT DATA:
-                - Doelen: ${JSON.stringify(data.strategicGoals)}
-                - Structuur: ${data.inrichting.structure.type} (${data.inrichting.structure.decisionMaking})
-                - Cultuur Barrières: ${data.inrichting.culture.barriers}
-                - Fit Scores: ${JSON.stringify(data.fitCheckScores)}
-                - Lopende Acties: ${data.actions.length} acties.
-                
-                GEBRUIKER BEKIJKT NU: ${currentView}
-
-                TAAK:
-                1. Geef één krachtig overkoepelend advies (mainAdvice) voor deze pagina.
-                2. Geef 2-3 gestructureerde inzichten (structuredInsights) die verbanden leggen tussen tabs. 
-                
-                JSON OUTPUT FORMAT:
-                {
-                    "mainAdvice": "string",
-                    "structuredInsights": [
-                        { "id": "1", "type": "warning|opportunity|tip", "title": "string", "description": "string", "targetView": "view_name" }
-                    ]
-                }
-            `,
-            config: { 
-                systemInstruction: "Antwoord in het Nederlands. Wees kritisch maar constructief. Gebruik de JSON output format.",
-                responseMimeType: "application/json"
-            }
-        });
-
-        const result = safeParse(response.text, { mainAdvice: "Ik analyseer je data...", structuredInsights: [] });
-        return result;
-    } catch (e) {
-        return { 
-            mainAdvice: "De co-piloot is momenteel even aan het nadenken...", 
-            structuredInsights: [] 
-        };
     }
 }
 

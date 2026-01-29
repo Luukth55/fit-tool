@@ -87,21 +87,24 @@ const Analyse: React.FC<Props> = ({ data, onNavigate }) => {
            </div>
 
            {/* Data Points (Simulation of actions and threats) */}
-           {data.actions.map((action, i) => (
-             <div 
-               key={action.id}
-               className={`absolute h-8 w-8 rounded-full border-2 border-white shadow-xl flex items-center justify-center cursor-help transition-all hover:scale-150 z-10
-                ${action.riskLevel === 'High' ? 'bg-red-500' : action.riskLevel === 'Medium' ? 'bg-orange-500' : 'bg-green-500'}`}
-               style={{ 
-                 bottom: `${(action.impact / 5) * 80}%`, 
-                 left: `${i * 15 + 10}%` 
-               }}
-             >
-                <div className="absolute top-full mt-2 bg-blackDark text-white p-2 rounded-lg text-[8px] font-black whitespace-nowrap opacity-0 group-hover:opacity-100">
-                  {action.title}
-                </div>
-             </div>
-           ))}
+           {data.actions.map((action, i) => {
+             const likelihood = action.riskLevel === 'High' ? 4 : action.riskLevel === 'Medium' ? 3 : 1;
+             return (
+               <div 
+                 key={action.id}
+                 className={`absolute h-8 w-8 rounded-full border-2 border-white shadow-xl flex items-center justify-center cursor-help transition-all hover:scale-150 z-10
+                  ${action.riskLevel === 'High' ? 'bg-red-500' : action.riskLevel === 'Medium' ? 'bg-orange-500' : 'bg-green-500'}`}
+                 style={{ 
+                   bottom: `${(action.impact / 5) * 80}%`, 
+                   left: `${(likelihood / 5) * 80 + (i * 2)}%` 
+                 }}
+               >
+                  <div className="absolute top-full mt-2 bg-blackDark text-white p-2 rounded-lg text-[8px] font-black whitespace-nowrap opacity-0 group-hover:opacity-100">
+                    {action.title}
+                  </div>
+               </div>
+             )
+           })}
 
            <div className="absolute -left-10 top-1/2 -rotate-90 text-[8px] font-black text-grayMedium uppercase tracking-widest">Impact</div>
            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[8px] font-black text-grayMedium uppercase tracking-widest">Waarschijnlijkheid</div>
@@ -109,7 +112,7 @@ const Analyse: React.FC<Props> = ({ data, onNavigate }) => {
         <div className="mt-8 flex items-center gap-4 p-4 bg-red-50 rounded-2xl border border-red-100">
            <ShieldAlert className="h-5 w-5 text-red-600" />
            <p className="text-xs font-bold text-red-900 leading-tight">
-             Kritiek Risico: De combinatie van 'Mensen' mismatch en de agressieve deadline van Q3 2025 creëert een 80% kans op vertraging.
+             Kritiek Risico: {data.actions.filter(a => a.riskLevel === 'High').length} acties in de rode zone vereisen directe aandacht van de directie.
            </p>
         </div>
       </Card>
@@ -126,7 +129,7 @@ const Analyse: React.FC<Props> = ({ data, onNavigate }) => {
                </svg>
                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                   <p className="text-4xl font-black text-blackDark">{data.inrichting.resources.digitalMaturity || 65}%</p>
-                  <p className="text-[10px] font-black text-grayMedium uppercase">Gereed</p>
+                  <p className="text-[10px] font-black text-grayMedium uppercase">Digital Readiness</p>
                </div>
             </div>
         </div>
@@ -136,11 +139,11 @@ const Analyse: React.FC<Props> = ({ data, onNavigate }) => {
               <Badge color="green">High</Badge>
            </div>
            <div className="flex justify-between items-center text-xs font-bold border-b border-gray-50 pb-3">
-              <span className="text-grayMedium uppercase">Cloud Ready</span>
+              <span className="text-grayMedium uppercase">Cloud Infra</span>
               <Badge color="blue">Partial</Badge>
            </div>
            <div className="flex justify-between items-center text-xs font-bold border-b border-gray-50 pb-3">
-              <span className="text-grayMedium uppercase">AI Potentieel</span>
+              <span className="text-grayMedium uppercase">AI Adoptering</span>
               <Badge color="purple">Emerging</Badge>
            </div>
         </div>
@@ -156,7 +159,7 @@ const Analyse: React.FC<Props> = ({ data, onNavigate }) => {
               <th className="py-4 font-black text-[10px] text-grayMedium uppercase tracking-widest">Doelstelling</th>
               <th className="py-4 font-black text-[10px] text-grayMedium uppercase tracking-widest">Status</th>
               <th className="py-4 font-black text-[10px] text-grayMedium uppercase tracking-widest text-center">Voortgang</th>
-              <th className="py-4 font-black text-[10px] text-grayMedium uppercase tracking-widest">AI Inzicht</th>
+              <th className="py-4 font-black text-[10px] text-grayMedium uppercase tracking-widest">Gat Analyse</th>
             </tr>
           </thead>
           <tbody>
@@ -186,10 +189,10 @@ const Analyse: React.FC<Props> = ({ data, onNavigate }) => {
                   </td>
                   <td className="py-5">
                     <p className="text-[11px] font-medium text-grayDark italic leading-relaxed max-w-xs">
-                      {status === 'Bad' ? "Dit doel mist zowel een KPI als een concrete actie. Risico op stilstand." : 
-                       !goal.kpiId ? "KPI ontbreekt; succes is momenteel niet meetbaar." :
-                       !data.actions.some(a => a.linkedId === goal.id) ? "Geen acties gekoppeld; executie ontbreekt." :
-                       "Goede koppeling tussen doel, KPI en uitvoering."}
+                      {status === 'Bad' ? "Kritiek gat: executie ontbreekt volledig voor deze doelstelling." : 
+                       !goal.kpiId ? "Focus gat: succes is niet kwantitatief meetbaar." :
+                       !data.actions.some(a => a.linkedId === goal.id) ? "Executie gat: geen actieve projecten gekoppeld." :
+                       "Geen significante gaten gedetecteerd."}
                     </p>
                   </td>
                 </tr>
@@ -202,7 +205,7 @@ const Analyse: React.FC<Props> = ({ data, onNavigate }) => {
   );
 
   return (
-    <div className="space-y-16 pb-32 reveal visible">
+    <div className="space-y-16 pb-32 animate-fade-in-up">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <Badge color="blue" className="mb-4">SYSTEM INTELLIGENCE</Badge>

@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { View, UserState, AppData, CopilotInsight } from '../types';
+import React, { useState } from 'react';
+import { View, UserState, AppData } from '../types';
 import { 
   LayoutDashboard, 
   Target, 
@@ -11,17 +11,11 @@ import {
   LogOut,
   ChevronRight,
   CheckCircle2,
-  Zap,
-  MessageSquare,
   X,
-  Sparkles,
-  AlertTriangle,
-  Lightbulb,
   PieChart,
   Menu,
   Bell
 } from 'lucide-react';
-import { getCopilotInsights } from '../services/geminiService';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -52,22 +46,7 @@ const SidebarItem: React.FC<{
 );
 
 const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate, user, onLogout, data }) => {
-  const [copilotOpen, setCopilotOpen] = useState(false);
-  const [advice, setAdvice] = useState("Ik bereid strategisch advies voor...");
-  const [structuredInsights, setStructuredInsights] = useState<CopilotInsight[]>([]);
-  const [loadingAdvice, setLoadingAdvice] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (copilotOpen) {
-      setLoadingAdvice(true);
-      getCopilotInsights(data, currentView).then(res => {
-        setAdvice(res.mainAdvice);
-        setStructuredInsights(res.structuredInsights);
-        setLoadingAdvice(false);
-      });
-    }
-  }, [copilotOpen, currentView]);
 
   const menuItems = [
     { view: View.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
@@ -87,14 +66,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate, user
   };
 
   const totalProgress = calculateTotalProgress();
-
-  const getInsightIcon = (type: string) => {
-    switch(type) {
-        case 'warning': return <AlertTriangle className="h-4 w-4 text-red-500" />;
-        case 'opportunity': return <Zap className="h-4 w-4 text-yellow-500" />;
-        default: return <Lightbulb className="h-4 w-4 text-blue-500" />;
-    }
-  }
 
   return (
     <div className="min-h-screen bg-white lg:bg-grayLight/30 flex">
@@ -163,14 +134,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate, user
                 <div className="h-11 w-11 rounded-2xl bg-grayLight/40 flex items-center justify-center text-grayMedium hover:text-primary cursor-pointer transition-colors hidden sm:flex">
                    <Bell className="h-5 w-5" />
                 </div>
-                
-                <button 
-                  onClick={() => setCopilotOpen(!copilotOpen)}
-                  className={`h-11 px-4 md:px-6 rounded-2xl flex items-center gap-3 transition-all duration-300 shadow-xl ${copilotOpen ? 'bg-primary text-white' : 'bg-white text-primary border border-gray-100 hover:shadow-2xl hover:-translate-y-0.5'}`}
-                >
-                  <Sparkles className={`h-5 w-5 ${loadingAdvice ? 'animate-pulse' : ''}`} />
-                  <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">AI Co-piloot</span>
-                </button>
             </div>
           </div>
         </header>
@@ -216,85 +179,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate, user
           </div>
         </div>
       )}
-
-      {/* AI Copilot Drawer */}
-      <div className={`fixed inset-y-0 right-0 w-full sm:w-80 lg:w-96 bg-white shadow-[0_0_100px_rgba(0,0,0,0.1)] z-[100] transform transition-transform duration-500 ease-in-out border-l border-gray-100 ${copilotOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-         <div className="p-8 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-10">
-               <div className="flex items-center gap-3">
-                  <div className="bg-primary p-2.5 rounded-2xl text-white shadow-lg">
-                    <Zap className="h-5 w-5 fill-current" />
-                  </div>
-                  <h3 className="font-black text-2xl text-blackDark tracking-tight">AI Co-piloot</h3>
-               </div>
-               <button onClick={() => setCopilotOpen(false)} className="text-grayMedium hover:text-blackDark transition-all hover:rotate-90">
-                  <X className="h-7 w-7" />
-               </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-8 scrollbar-hide">
-               {/* Main Advice Card */}
-               <div className="bg-gradient-to-br from-blue-600 to-indigo-800 p-8 rounded-[2.5rem] text-white relative group overflow-hidden shadow-2xl shadow-blue-500/20">
-                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Sparkles className="h-20 w-20" />
-                  </div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-4 text-blue-200">Nu op deze pagina</p>
-                  {loadingAdvice ? (
-                    <div className="space-y-4">
-                       <div className="h-4 bg-white/20 rounded-full animate-pulse w-full"></div>
-                       <div className="h-4 bg-white/20 rounded-full animate-pulse w-5/6"></div>
-                       <div className="h-4 bg-white/20 rounded-full animate-pulse w-4/6"></div>
-                    </div>
-                  ) : (
-                    <p className="text-base font-bold leading-relaxed italic border-l-4 border-white/20 pl-6">"{advice}"</p>
-                  )}
-               </div>
-
-               {/* Cross-module Insights */}
-               <div className="space-y-5 pt-4">
-                  <p className="text-[10px] font-black text-grayMedium uppercase tracking-[0.2em] mb-4">Systeem-brede Inzichten</p>
-                  
-                  {loadingAdvice ? (
-                      [1,2,3].map(i => <div key={i} className="h-32 bg-grayLight/40 rounded-[2rem] animate-pulse"></div>)
-                  ) : (
-                    structuredInsights.map(insight => (
-                        <div 
-                            key={insight.id} 
-                            onClick={() => { onNavigate(insight.targetView); setCopilotOpen(false); }}
-                            className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:border-primary/30 transition-all cursor-pointer group"
-                        >
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="p-2 bg-grayLight/50 rounded-xl group-hover:bg-primary group-hover:text-white transition-all">
-                                    {getInsightIcon(insight.type)}
-                                </div>
-                                <h4 className="text-xs font-black text-blackDark uppercase tracking-tight">{insight.title}</h4>
-                            </div>
-                            <p className="text-sm text-grayMedium leading-relaxed font-bold mb-6 italic">"{insight.description}"</p>
-                            <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                                <span className="text-[10px] font-black text-primary uppercase tracking-widest">Bekijk in {insight.targetView}</span>
-                                <ChevronRight className="h-4 w-4 text-primary group-hover:translate-x-1 transition-transform" />
-                            </div>
-                        </div>
-                    ))
-                  )}
-
-                  {structuredInsights.length === 0 && !loadingAdvice && (
-                      <div className="text-center py-10 opacity-40 bg-grayLight/20 rounded-[2rem] border-2 border-dashed border-grayMedium/20">
-                          <CheckCircle2 className="h-10 w-10 mx-auto text-grayMedium mb-4" />
-                          <p className="text-xs font-black text-grayMedium uppercase tracking-widest">Geen kritieke mismatches.</p>
-                      </div>
-                  )}
-               </div>
-            </div>
-
-            <div className="mt-auto pt-8 border-t border-gray-50 text-center">
-               <div className="flex items-center justify-center gap-2 text-[10px] text-grayMedium font-black uppercase tracking-widest">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-                  Powered by Gemini 3 Reasoning Engine
-               </div>
-            </div>
-         </div>
-      </div>
     </div>
   );
 };

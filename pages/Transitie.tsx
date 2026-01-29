@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { AppData, ActionItem, ActionStatus, View, Domain } from '../types';
 import { Card, Button, Badge, Modal, Input, Select, TextArea, Tabs } from '../components/Shared';
-import { Plus, Calendar, User, ChevronRight, Info, Activity, ListTodo, PlayCircle, CheckCircle2, LayoutGrid, Gaps as TimelineIcon, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Calendar, User, ChevronRight, Info, Activity, ListTodo, PlayCircle, CheckCircle2, LayoutGrid, Clock, AlertTriangle } from 'lucide-react';
 
 interface Props {
   data: AppData;
@@ -70,14 +70,17 @@ const Transitie: React.FC<Props> = ({ data, onUpdate, onNavigate }) => {
                         ${action.status === 'done' ? 'bg-green-50 border-green-500 text-green-900' : 'bg-blue-50 border-primary text-primary'}`}
                       style={{ 
                         left: `${Math.min(leftPos, 70)}%`, 
-                        width: '250px' 
+                        width: '300px' 
                       }}
                     >
                       <div className="min-w-0">
                         <p className="text-xs font-black truncate">{action.title}</p>
                         <p className="text-[9px] font-bold opacity-60 uppercase">{action.owner} • {action.deadline}</p>
                       </div>
-                      {action.impact >= 4 && <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />}
+                      <div className="flex items-center gap-2">
+                        {action.impact >= 4 && <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />}
+                        {action.status === 'done' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                      </div>
                     </div>
                   </div>
                 );
@@ -89,6 +92,13 @@ const Transitie: React.FC<Props> = ({ data, onUpdate, onNavigate }) => {
                <p className="font-bold uppercase tracking-widest text-sm">Geen acties gepland</p>
             </div>
           )}
+        </div>
+        <div className="p-8 bg-gray-50 border-t border-gray-100">
+           <div className="flex items-center gap-4 text-xs font-bold text-grayMedium">
+              <div className="flex items-center gap-2"><div className="h-3 w-3 bg-primary rounded-full"></div> In uitvoering</div>
+              <div className="flex items-center gap-2"><div className="h-3 w-3 bg-green-500 rounded-full"></div> Voltooid</div>
+              <div className="flex items-center gap-2"><AlertTriangle className="h-3 w-3 text-red-500" /> Hoog Impact</div>
+           </div>
         </div>
       </div>
     );

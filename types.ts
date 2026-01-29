@@ -9,6 +9,13 @@ export enum View {
   FITCHECK = 'fitcheck',
   ANALYSE = 'analyse',
   SETTINGS = 'settings',
+  // Footer Pages
+  FEATURES = 'features',
+  AI_ENGINE = 'ai_engine',
+  PRICING = 'pricing',
+  ABOUT_US = 'about_us',
+  METHOD = 'method',
+  PRIVACY = 'privacy'
 }
 
 export enum Domain {
@@ -35,6 +42,21 @@ export interface HistoryPoint {
   date: string;
   totalFitScore: number;
   domainScores: Record<string, number>;
+}
+
+export interface YearlyValue {
+  year: string;
+  value: string;
+}
+
+export interface PerformanceMetric {
+  id: string;
+  wheel: ValueWheel;
+  name: string;
+  unit: string;
+  values: YearlyValue[];
+  isStandard: boolean;
+  description?: string;
 }
 
 export interface StrategicKPI {
@@ -146,7 +168,9 @@ export interface InrichtingData {
     decisionMaking: string; 
     choiceReason: string; 
     spanOfControl: number; 
-    collaboration?: string; 
+    meetingStructure: string;
+    governance: string;
+    rolesClarity: string;
     organogramData?: string; 
     organogramAnalysis?: string;
   };
@@ -155,21 +179,31 @@ export interface InrichtingData {
     trainingBudget: number; 
     securityLevel: string; 
     digitalAssets: string; 
-    missingResources: string;
-    digitalMaturity?: number; // 1-100
+    physicalAssets: string;
+    criticalVendors: string;
+    digitalMaturity: number; 
   };
-  culture: { type: string; characteristics: string[]; barriers: string; strategyFit: string; };
-  people: { totalFte: number; turnover: number; leadershipStyle: string; eNPS: number; gaps: string; };
+  culture: { 
+    type: string; 
+    characteristics: string[]; 
+    barriers: string; 
+    strategyFit: string;
+    coreValues: string;
+    communicationStyle: string;
+    recognitionRewards: string;
+  };
+  people: { 
+    totalFte: number; 
+    turnover: number; 
+    leadershipStyle: string; 
+    eNPS: number; 
+    gaps: string; 
+    recruitmentStrategy: string;
+    talentDevelopment: string;
+    diversityInclusion: string;
+  };
   gapAnalysis: GapAnalysisItem[];
   analysis?: string;
-}
-
-export interface CopilotInsight {
-    id: string;
-    type: 'warning' | 'opportunity' | 'tip';
-    title: string;
-    description: string;
-    targetView: View;
 }
 
 export interface AppData {
@@ -178,6 +212,8 @@ export interface AppData {
   vision: string;
   strategy: string;
   strategicKPIs: StrategicKPI[];
+  performanceMetrics: PerformanceMetric[];
+  wheelContext: Record<ValueWheel, string>;
   stakeholders: Stakeholder[];
   strategicGoals: StrategicGoal[];
   externalAnalysis: ExternalFactor[];
