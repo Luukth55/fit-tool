@@ -52,7 +52,7 @@ const QUESTIONS: Question[] = [
   { id: 'r4', domain: 'Middelen', question: 'Hebben medewerkers toegang tot de juiste tools?', hint: 'Hardware en software zijn up-to-date.' },
   { id: 'r5', domain: 'Middelen', question: 'Is er een innovatiebudget voor experimenten?', hint: 'Ruimte voor R&D.' },
   { id: 'r6', domain: 'Middelen', question: 'Worden middelen efficiënt ingezet (weinig verspilling)?', hint: 'Kostenbewustzijn in de operatie.' },
-  { id: 'r7', domain: 'Middelen', question: 'Is de fysieke werkomgeving inspirerend en functioneel?', hint: 'Kantoor of remote-setup is optimaal.' },
+  { id: 'r7', domain: 'Middelen', question: 'Is de fysieke werkomgeving inspirerend en functionaliteit?', hint: 'Kantoor of remote-setup is optimaal.' },
   { id: 'r8', domain: 'Middelen', question: 'Zijn kritieke leveranciers betrouwbaar?', hint: 'Continuïteit is gewaarborgd.' },
   { id: 'r9', domain: 'Middelen', question: 'Is er voldoende kennis over nieuwe technologie (zoals AI)?', hint: 'Technologische awareness.' },
   { id: 'r10', domain: 'Middelen', question: 'Is de liquiditeitspositie gezond voor investeringen?', hint: 'Cashflow is op orde.' },
@@ -112,8 +112,8 @@ const FitCheck: React.FC<Props> = ({ data, onUpdate, onNavigate }) => {
 
   const handleAIAnalysis = async () => {
       setAnalyzing(true);
-      const domainResults = calculateDomainScores();
-      const interpretation = await runFitCheckInterpretation(data, answers);
+      // Passing QUESTIONS as the 3rd parameter to the refactored runFitCheckInterpretation
+      const interpretation = await runFitCheckInterpretation(data, answers, QUESTIONS);
       
       if (interpretation.length > 0) {
           onUpdate({ 

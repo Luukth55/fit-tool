@@ -1,24 +1,26 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import Dashboard from './pages/Dashboard';
-import Focus from './pages/Focus';
-import Inrichting from './pages/Inrichting';
-import Transitie from './pages/Transitie';
-import FitCheck from './pages/FitCheck';
-import Analyse from './pages/Analyse';
-import Settings from './pages/Settings';
-import ProductFeatures from './pages/ProductFeatures';
-import AIEngine from './pages/AIEngine';
-import Pricing from './pages/Pricing';
-import AboutUs from './pages/AboutUs';
-import Method from './pages/Method';
-import Privacy from './pages/Privacy';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import { View, AppData, Domain, UserState, ActionItem, ValueWheel, PerformanceMetric } from './types';
-import { ErrorBoundary } from './components/Shared';
+import { ErrorBoundary, Button } from './components/Shared';
 import { supabase, saveAppDataToCloud, loadAppDataFromCloud } from './services/supabaseClient';
+
+// Lazy loading components for performance optimization (Prompt #5)
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Focus = lazy(() => import('./pages/Focus'));
+const Inrichting = lazy(() => import('./pages/Inrichting'));
+const Transitie = lazy(() => import('./pages/Transitie'));
+const FitCheck = lazy(() => import('./pages/FitCheck'));
+const Analyse = lazy(() => import('./pages/Analyse'));
+const Settings = lazy(() => import('./pages/Settings'));
+const ProductFeatures = lazy(() => import('./pages/ProductFeatures'));
+const AIEngine = lazy(() => import('./pages/AIEngine'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+const AboutUs = lazy(() => import('./pages/AboutUs'));
+const Method = lazy(() => import('./pages/Method'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 
 const STORAGE_KEY = 'fit_tool_data';
 
@@ -155,6 +157,15 @@ const initialData: AppData = {
   alerts: []
 };
 
+const PageLoader = () => (
+  <div className="flex-1 flex items-center justify-center p-20">
+    <div className="flex flex-col items-center gap-4">
+      <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-grayMedium">Module Laden...</p>
+    </div>
+  </div>
+);
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.LANDING);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -166,7 +177,6 @@ const App: React.FC = () => {
   
   const [appData, setAppData] = useState<AppData>(initialData);
 
-  // Supabase Auth Listeners
   useEffect(() => {
     const initAuth = async () => {
         if (!supabase) {
@@ -182,7 +192,7 @@ const App: React.FC = () => {
                 organization: session.user.user_metadata?.organization || "My Org",
                 email: session.user.email || "",
                 role: 'user'
-            };
+            } as UserState;
             setUser(userData);
             const cloudData = await loadAppDataFromCloud(session.user.id);
             if (cloudData) setAppData(cloudData);
@@ -277,9 +287,12 @@ const App: React.FC = () => {
   const isFooterPage = [View.FEATURES, View.AI_ENGINE, View.PRICING, View.ABOUT_US, View.METHOD, View.PRIVACY].includes(currentView);
 
   if (!user.isAuthenticated || isFooterPage) {
-    if (currentView === View.LOGIN) return <LoginPage onLogin={handleLogin} onNavigate={setCurrentView} />;
-    if (isFooterPage) return renderView();
-    return <LandingPage onNavigate={setCurrentView} />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        {currentView === View.LOGIN ? <LoginPage onLogin={handleLogin} onNavigate={setCurrentView} /> :
+         isFooterPage ? renderView() : <LandingPage onNavigate={setCurrentView} />}
+      </Suspense>
+    );
   }
 
   return (
@@ -292,7 +305,9 @@ const App: React.FC = () => {
             data={appData}
             isSyncing={isSyncing}
         >
-          {renderView()}
+          <Suspense fallback={<PageLoader />}>
+            {renderView()}
+          </Suspense>
         </Layout>
     </ErrorBoundary>
   );
