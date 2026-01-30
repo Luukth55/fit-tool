@@ -1,4 +1,3 @@
-
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { LucideIcon, X, Sparkles, AlertCircle } from 'lucide-react';
 import DOMPurify from 'dompurify';
@@ -32,6 +31,10 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
     </button>
   );
 };
+
+export const Skeleton: React.FC<{ className?: string }> = ({ className = "" }) => (
+  <div className={`animate-pulse bg-gray-200 rounded-2xl ${className}`}></div>
+);
 
 export const Card: React.FC<{ children: React.ReactNode; className?: string; title?: string; subtitle?: string; action?: React.ReactNode; onClick?: () => void }> = ({ children, className = '', title, subtitle, action, onClick }) => (
   <div 
@@ -169,28 +172,15 @@ export const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: stri
     );
 };
 
-// Global Error Boundary for Production Monitoring
-interface ErrorBoundaryProps {
-    children?: ReactNode;
-}
+// Fix: Inherit from imported Component and explicitly type props to resolve property 'props' error
+export class ErrorBoundary extends Component<{ children?: ReactNode }, { hasError: boolean }> {
+    state = { hasError: false };
 
-interface ErrorBoundaryState {
-    hasError: boolean;
-}
-
-/**
- * Fix: Explicitly extending React.Component and using class property initialization for 'state'
- * to ensure that the 'state' and 'props' properties are correctly recognized and typed by the TypeScript compiler.
- */
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-    state: ErrorBoundaryState = { hasError: false };
-
-    static getDerivedStateFromError(_: Error): ErrorBoundaryState {
+    static getDerivedStateFromError(_: Error) {
         return { hasError: true };
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        // Here you would log to Sentry or similar
         console.error("Uncaught error:", error, errorInfo);
     }
 

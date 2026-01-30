@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, memo, useCallback, useRef, useEffect } from 'react';
 import { AppData, View, AIAlert, ActionItem } from '../types';
 import { Card, Button, Badge, Modal } from '../components/Shared';
@@ -194,6 +193,13 @@ const AlertItem = memo(({ alert, onClick }: { alert: AIAlert, onClick: () => voi
      <p className="text-[10px] text-grayDark mt-1 line-clamp-2">{alert.message}</p>
   </div>
 ));
+
+// Fix: Add Props interface to satisfy React.FC<Props> and define component inputs
+interface Props {
+  data: AppData;
+  onNavigate: (view: View) => void;
+  onUpdate: (data: Partial<AppData>) => void;
+}
 
 // --- MAIN DASHBOARD COMPONENT ---
 
