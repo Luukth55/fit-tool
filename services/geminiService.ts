@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AppData, FitCheckScore, ExternalFactor, View, ExternalSource, StrategicGoal, AIAlert, ActionItem, PerformanceMetric, Domain, GapAnalysisItem } from "../types";
 
@@ -10,6 +9,26 @@ const MODELS = {
   SMART: 'gemini-3-pro-preview',
   VISION: 'gemini-3-flash-preview'
 } as const;
+
+/**
+ * API Key Helper - Retrieves key from environment exclusively.
+ * Per security guidelines, keys are managed via process.env.API_KEY.
+ */
+const getAPIKey = (): string => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error('❌ API key niet geconfigureerd. Neem contact op met de beheerder voor toegang tot de AI Engine.');
+  }
+  return apiKey;
+};
+
+/**
+ * Get AI Client with API key from environment
+ */
+const getAIClient = (): GoogleGenAI => {
+  const apiKey = getAPIKey();
+  return new GoogleGenAI({ apiKey });
+};
 
 const CACHE_PREFIX = 'fit_ai_cache_';
 const REQUEST_TIMEOUT = 60000; // 60 seconds
@@ -111,8 +130,8 @@ export interface Scenario {
  * 1. Analyze Organogram (Vision Task)
  */
 export const analyzeOrganogram = async (base64Image: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const ai = getAIClient();
     const response = await callWithRetry(() => withTimeout(
       ai.models.generateContent({
         model: MODELS.VISION,
@@ -126,9 +145,10 @@ export const analyzeOrganogram = async (base64Image: string): Promise<string> =>
       REQUEST_TIMEOUT
     )) as GenerateContentResponse;
     return response.text || "Geen resultaten.";
-  } catch (e) {
-    console.error(e);
-    return "Audit tijdelijk niet beschikbaar.";
+  } catch (e: any) {
+    console.error('Organogram analysis failed:', e);
+    if (e.message?.includes('API key')) return `❌ ${e.message}`;
+    return "Analyse tijdelijk niet beschikbaar.";
   }
 };
 
@@ -140,8 +160,8 @@ export const generateExternalAnalysis = async (companyName: string, sector: stri
   const cached = getCached<ExternalFactor[]>(cacheKey);
   if (cached) return cached;
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const ai = getAIClient();
     const response = await callWithRetry(() => withTimeout(
       ai.models.generateContent({
         model: MODELS.SMART,
@@ -185,7 +205,8 @@ export const generateExternalAnalysis = async (companyName: string, sector: stri
     const finalResult = factors.map((f: any) => ({ ...f, sources: sources.slice(0, 4) }));
     setCached(cacheKey, finalResult);
     return finalResult;
-  } catch (e) {
+  } catch (e: any) {
+    console.error('External analysis failed:', e);
     return [];
   }
 };
@@ -194,8 +215,8 @@ export const generateExternalAnalysis = async (companyName: string, sector: stri
  * 3. Smart Alerts (Smart Task)
  */
 export const generateSmartAlerts = async (data: AppData): Promise<AIAlert[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const ai = getAIClient();
     const response = await callWithRetry(() => withTimeout(
       ai.models.generateContent({
         model: MODELS.SMART,
@@ -223,7 +244,10 @@ export const generateSmartAlerts = async (data: AppData): Promise<AIAlert[]> => 
       REQUEST_TIMEOUT
     )) as GenerateContentResponse;
     return safeParse(response.text || "", []);
-  } catch { return []; }
+  } catch (e: any) {
+    console.error('Smart alerts failed:', e);
+    return [];
+  }
 };
 
 /**
@@ -238,8 +262,7 @@ export const analyzeInrichting = async (
   gapAnalysis: GapAnalysisItem[];
 }> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
+    const ai = getAIClient();
     const prompt = `
 Je bent een senior strategisch organisatieadviseur. Voer een grondige gap analyse uit.
 
@@ -317,6 +340,7 @@ JSON object met "summary" (string) en "gapAnalysis" (array).
     
   } catch (error: any) {
     console.error('Gap analysis failed:', error);
+    if (error.message?.includes('API key')) return { summary: `❌ ${error.message}`, gapAnalysis: [] };
     return {
       summary: "Analyse tijdelijk niet beschikbaar door een verbindingsfout.",
       gapAnalysis: goals.map(goal => ({
@@ -338,8 +362,8 @@ JSON object met "summary" (string) en "gapAnalysis" (array).
  * 5. Metric Benchmark (Smart Task with Search)
  */
 export const getMetricBenchmark = async (metricName: string, sector: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const ai = getAIClient();
     const response = await callWithRetry(() => withTimeout(
       ai.models.generateContent({
         model: MODELS.SMART,
@@ -349,15 +373,18 @@ export const getMetricBenchmark = async (metricName: string, sector: string): Pr
       REQUEST_TIMEOUT
     )) as GenerateContentResponse;
     return response.text || "Geen benchmark data.";
-  } catch { return "Benchmark niet beschikbaar."; }
+  } catch (e: any) {
+    console.error('Benchmark failed:', e);
+    return "Benchmark niet beschikbaar.";
+  }
 };
 
 /**
  * 6. Strategic Scenarios (Smart Task)
  */
 export const generateStrategicScenarios = async (data: AppData): Promise<Scenario[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const ai = getAIClient();
     const response = await callWithRetry(() => withTimeout(
       ai.models.generateContent({
         model: MODELS.SMART,
@@ -382,15 +409,18 @@ export const generateStrategicScenarios = async (data: AppData): Promise<Scenari
       REQUEST_TIMEOUT
     )) as GenerateContentResponse;
     return safeParse(response.text || "", []);
-  } catch { return []; }
+  } catch (e: any) {
+    console.error('Scenarios failed:', e);
+    return [];
+  }
 };
 
 /**
  * 7. Action Suggestions (Fast Task)
  */
 export const generateActionSuggestions = async (data: AppData): Promise<Partial<ActionItem>[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const ai = getAIClient();
     const response = await callWithRetry(() => withTimeout(
       ai.models.generateContent({
         model: MODELS.FAST,
@@ -417,15 +447,18 @@ export const generateActionSuggestions = async (data: AppData): Promise<Partial<
       REQUEST_TIMEOUT
     )) as GenerateContentResponse;
     return safeParse(response.text || "", []);
-  } catch { return []; }
+  } catch (e: any) {
+    console.error('Action suggestions failed:', e);
+    return [];
+  }
 };
 
 /**
  * 8. Action Coaching (Fast Task)
  */
 export const getActionCoaching = async (action: ActionItem, data: AppData): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    const ai = getAIClient();
     const response = await callWithRetry(() => withTimeout(
       ai.models.generateContent({
         model: MODELS.FAST,
@@ -434,7 +467,10 @@ export const getActionCoaching = async (action: ActionItem, data: AppData): Prom
       REQUEST_TIMEOUT
     )) as GenerateContentResponse;
     return response.text || "Focus op executie.";
-  } catch { return "Geen coaching beschikbaar."; }
+  } catch (e: any) {
+    console.error('Coaching failed:', e);
+    return "Geen coaching beschikbaar.";
+  }
 };
 
 /**
@@ -460,7 +496,7 @@ export const runFitCheckInterpretation = async (
   }));
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAIClient();
     const prompt = `
 Analyseer deze FITCheck resultaten voor ${data.orgProfile.name} in de sector ${data.orgProfile.sector}.
 Gemiddelde scores (1-5):
@@ -505,5 +541,57 @@ Genereer voor elk domein een interpretatie en 2-4 concrete verbetersuggesties.
       suggestion: "Bekijk de individuele vragen om verbeterpunten te vinden.",
       trend: 'stable'
     }));
+  }
+};
+
+/**
+ * 10. Predictive Insights (Smart Task)
+ */
+export const generatePredictiveInsights = async (data: AppData): Promise<string[]> => {
+  try {
+    const ai = getAIClient();
+    
+    const prompt = `
+Je bent een predictive analytics expert.
+
+DATA:
+- FIT scores over tijd: ${JSON.stringify(data.history)}
+- Huidige doelen: ${JSON.stringify(data.strategicGoals)}
+- Acties: ${data.actions.length} totaal, ${data.actions.filter(a => a.status === 'done').length} voltooid
+- Lopende acties: ${data.actions.filter(a => a.status === 'doing').length}
+
+TAAK:
+Genereer 5-7 predictive insights op basis van trends in de data.
+
+FORMAT:
+- Kort (max 30 woorden per insight)
+- Specifiek (met cijfers)
+- Actionable (wat betekent dit?)
+- Mix van positief en waarschuwend
+
+VOORBEELDEN:
+✅ "Huidige FIT score trend (+0.3/kwartaal) betekent dat je 'Optimaal' status (>75%) bereikt in Q4 2026"
+✅ "Cultuur score stagneert (3x achter elkaar 2.8) - zonder interventie blokkeren 3 mensen-doelen"
+✅ "Actie completion rate (65%) ligt boven benchmark - behoud deze cadans voor on-time doelrealisatie"
+
+OUTPUT: JSON array van strings
+    `;
+    
+    const response = await ai.models.generateContent({
+      model: MODELS.SMART,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    }) as GenerateContentResponse;
+    
+    return safeParse(response.text || "[]", []);
+  } catch (e: any) {
+    console.error('Predictive insights failed:', e);
+    return ["Inzichten tijdelijk niet beschikbaar."];
   }
 };

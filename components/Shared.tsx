@@ -1,5 +1,6 @@
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { LucideIcon, X, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Sparkles, AlertCircle } from 'lucide-react';
 import DOMPurify from 'dompurify';
 
 export const sanitize = (text: string) => DOMPurify.sanitize(text);
@@ -172,9 +173,28 @@ export const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: stri
     );
 };
 
-// Fix: Inherit from imported Component and explicitly type props to resolve property 'props' error
-export class ErrorBoundary extends Component<{ children?: ReactNode }, { hasError: boolean }> {
-    state = { hasError: false };
+// Explicit interface for ErrorBoundary props and state
+interface ErrorBoundaryProps {
+    children?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+    hasError: boolean;
+}
+
+/**
+ * Fix: Explicitly use React.Component with generics to ensure 'state' and 'props' 
+ * properties are correctly identified by the TypeScript compiler on the instance.
+ */
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+    // Explicitly declare state and props to fix "Property does not exist on type 'ErrorBoundary'" errors.
+    public state: ErrorBoundaryState;
+    public props: ErrorBoundaryProps;
+
+    constructor(props: ErrorBoundaryProps) {
+        super(props);
+        this.state = { hasError: false };
+    }
 
     static getDerivedStateFromError(_: Error) {
         return { hasError: true };
